@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '../../../../../supabase/server';
-import { getUserSettings, upsertUserSettings } from '../../../../utils/userSettings';
+import { getUserSettings, upsertUserSettings } from '../../../../utils/userPreferences';
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();

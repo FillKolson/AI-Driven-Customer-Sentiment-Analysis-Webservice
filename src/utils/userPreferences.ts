@@ -1,6 +1,6 @@
 import { Database } from '../types/supabase';
 
-export type UserSettings = Database['public']['Tables']['user_settings']['Row'];
+export type UserSettings = Database['public']['Tables']['user_preferences']['Row'];
 
 /**
  * Get user settings for a given user ID using a provided Supabase client.
@@ -8,7 +8,7 @@ export type UserSettings = Database['public']['Tables']['user_settings']['Row'];
  */
 export async function getUserSettings(supabase: any, userId: string): Promise<UserSettings | null> {
   const { data, error } = await supabase
-    .from('user_settings')
+    .from('user_preferences')
     .select('*')
     .eq('user_id', userId)
     .single();
@@ -22,7 +22,7 @@ export async function getUserSettings(supabase: any, userId: string): Promise<Us
  */
 export async function upsertUserSettings(supabase: any, userId: string, settings: any): Promise<UserSettings | null> {
   const { data, error } = await supabase
-    .from('user_settings')
+    .from('user_preferences')
     .upsert({ user_id: userId, settings }, { onConflict: ['user_id'] })
     .select()
     .single();

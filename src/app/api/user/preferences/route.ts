@@ -74,28 +74,15 @@ export async function PUT(request: NextRequest) {
       timezone,
     } = body;
 
-    // Validate input
-    const validatedData: any = {};
-    if (typeof notifications_enabled === "boolean")
-      validatedData.notifications_enabled = notifications_enabled;
-    if (typeof email_notifications === "boolean")
-      validatedData.email_notifications = email_notifications;
-    if (typeof marketing_emails === "boolean")
-      validatedData.marketing_emails = marketing_emails;
-    if (
-      typeof theme === "string" &&
-      ["light", "dark", "system"].includes(theme)
-    )
-      validatedData.theme = theme;
-    if (typeof language === "string") validatedData.language = language;
-    if (typeof timezone === "string") validatedData.timezone = timezone;
-
-    if (Object.keys(validatedData).length === 0) {
-      return NextResponse.json(
-        { error: "No valid preferences provided" },
-        { status: 400 },
-      );
-    }
+    // Use defaults for all fields
+    const validatedData: any = {
+      notifications_enabled: typeof notifications_enabled === "boolean" ? notifications_enabled : true,
+      email_notifications: typeof email_notifications === "boolean" ? email_notifications : true,
+      marketing_emails: typeof marketing_emails === "boolean" ? marketing_emails : false,
+      theme: typeof theme === "string" && ["light", "dark", "system"].includes(theme) ? theme : "light",
+      language: typeof language === "string" ? language : "en",
+      timezone: typeof timezone === "string" ? timezone : "UTC",
+    };
 
     // Update or insert preferences
     const { data: existingPreferences } = await supabase
@@ -133,7 +120,7 @@ export async function PUT(request: NextRequest) {
     if (result.error) {
       console.error("Error updating preferences:", result.error);
       return NextResponse.json(
-        { error: "Failed to update preferences" },
+        { error: "Failed to update preferences: " + result.error.message },
         { status: 500 },
       );
     }

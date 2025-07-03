@@ -49,6 +49,7 @@ export default async function SettingsPage() {
               id: user.id,
               email: user.email || "",
               full_name: profile?.full_name || profile?.name || "",
+              bio: profile?.bio || "",
               subscription_status: profile?.subscription_status || "free",
               api_usage_current_month: profile?.api_usage_current_month || 0,
               api_limit_per_month: profile?.api_limit_per_month || 100,

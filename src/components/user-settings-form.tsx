@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -25,6 +25,7 @@ interface UserData {
   api_usage_current_month: number;
   api_limit_per_month: number;
   created_at: string;
+  bio?: string;
 }
 
 interface SubscriptionData {
@@ -43,15 +44,44 @@ export default function UserSettingsForm({
   subscription,
 }: UserSettingsFormProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [preferencesLoading, setPreferencesLoading] = useState(true);
   const [formData, setFormData] = useState({
     full_name: user.full_name,
     email: user.email,
-    bio: "",
+    bio: user.bio || "",
     notifications_enabled: true,
     email_notifications: true,
     marketing_emails: false,
   });
   const { toast } = useToast();
+
+  useEffect(() => {
+    async function fetchPreferences() {
+      try {
+        const response = await fetch("/api/user/preferences");
+        if (!response.ok) throw new Error("Failed to load preferences");
+        const result = await response.json();
+        if (result.preferences) {
+          setFormData((prev) => ({
+            ...prev,
+            notifications_enabled: result.preferences.notifications_enabled ?? true,
+            email_notifications: result.preferences.email_notifications ?? true,
+            marketing_emails: result.preferences.marketing_emails ?? false,
+          }));
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load preferences. Using defaults.",
+          variant: "destructive",
+        });
+      } finally {
+        setPreferencesLoading(false);
+      }
+    }
+    fetchPreferences();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,21 +96,24 @@ export default function UserSettingsForm({
         body: JSON.stringify({
           full_name: formData.full_name,
           email: formData.email,
+          bio: formData.bio,
         }),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error("Failed to update profile");
+        throw new Error(result.error || "Failed to update profile");
       }
 
       toast({
         title: "Profile updated",
         description: "Your profile has been successfully updated.",
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to update profile. Please try again.",
+        description: error.message || "Failed to update profile. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -290,92 +323,99 @@ export default function UserSettingsForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handlePreferencesSubmit} className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label
-                    htmlFor="notifications_enabled"
-                    className="text-sm font-medium"
-                  >
-                    Push Notifications
-                  </Label>
-                  <p className="text-xs text-gray-500">
-                    Receive notifications about your analyses
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  id="notifications_enabled"
-                  checked={formData.notifications_enabled}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      notifications_enabled: e.target.checked,
-                    })
-                  }
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label
-                    htmlFor="email_notifications"
-                    className="text-sm font-medium"
-                  >
-                    Email Notifications
-                  </Label>
-                  <p className="text-xs text-gray-500">
-                    Receive email updates about your account
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  id="email_notifications"
-                  checked={formData.email_notifications}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      email_notifications: e.target.checked,
-                    })
-                  }
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label
-                    htmlFor="marketing_emails"
-                    className="text-sm font-medium"
-                  >
-                    Marketing Emails
-                  </Label>
-                  <p className="text-xs text-gray-500">
-                    Receive updates about new features and promotions
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  id="marketing_emails"
-                  checked={formData.marketing_emails}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      marketing_emails: e.target.checked,
-                    })
-                  }
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-              </div>
+          {preferencesLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+              <span className="ml-2 text-gray-500">Loading preferences...</span>
             </div>
+          ) : (
+            <form onSubmit={handlePreferencesSubmit} className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label
+                      htmlFor="notifications_enabled"
+                      className="text-sm font-medium"
+                    >
+                      Push Notifications
+                    </Label>
+                    <p className="text-xs text-gray-500">
+                      Receive notifications about your analyses
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    id="notifications_enabled"
+                    checked={formData.notifications_enabled}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        notifications_enabled: e.target.checked,
+                      })
+                    }
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                </div>
 
-            <Button type="submit" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Update Preferences
-            </Button>
-          </form>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label
+                      htmlFor="email_notifications"
+                      className="text-sm font-medium"
+                    >
+                      Email Notifications
+                    </Label>
+                    <p className="text-xs text-gray-500">
+                      Receive email updates about your account
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    id="email_notifications"
+                    checked={formData.email_notifications}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        email_notifications: e.target.checked,
+                      })
+                    }
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label
+                      htmlFor="marketing_emails"
+                      className="text-sm font-medium"
+                    >
+                      Marketing Emails
+                    </Label>
+                    <p className="text-xs text-gray-500">
+                      Receive updates about new features and promotions
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    id="marketing_emails"
+                    checked={formData.marketing_emails}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        marketing_emails: e.target.checked,
+                      })
+                    }
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                </div>
+              </div>
+
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Update Preferences
+              </Button>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>
