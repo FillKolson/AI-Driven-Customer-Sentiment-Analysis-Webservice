@@ -49,7 +49,6 @@ export default function UserSettingsForm({
     full_name: user.full_name,
     email: user.email,
     bio: user.bio || "",
-    notifications_enabled: true,
     email_notifications: true,
     marketing_emails: false,
   });
@@ -64,7 +63,6 @@ export default function UserSettingsForm({
         if (result.preferences) {
           setFormData((prev) => ({
             ...prev,
-            notifications_enabled: result.preferences.notifications_enabled ?? true,
             email_notifications: result.preferences.email_notifications ?? true,
             marketing_emails: result.preferences.marketing_emails ?? false,
           }));
@@ -132,7 +130,6 @@ export default function UserSettingsForm({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          notifications_enabled: formData.notifications_enabled,
           email_notifications: formData.email_notifications,
           marketing_emails: formData.marketing_emails,
         }),
@@ -331,32 +328,6 @@ export default function UserSettingsForm({
           ) : (
             <form onSubmit={handlePreferencesSubmit} className="space-y-4">
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label
-                      htmlFor="notifications_enabled"
-                      className="text-sm font-medium"
-                    >
-                      Push Notifications
-                    </Label>
-                    <p className="text-xs text-gray-500">
-                      Receive notifications about your analyses
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    id="notifications_enabled"
-                    checked={formData.notifications_enabled}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        notifications_enabled: e.target.checked,
-                      })
-                    }
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                </div>
-
                 <div className="flex items-center justify-between">
                   <div>
                     <Label

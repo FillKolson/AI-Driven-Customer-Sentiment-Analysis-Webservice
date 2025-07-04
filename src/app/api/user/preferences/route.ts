@@ -31,7 +31,6 @@ export async function GET(request: NextRequest) {
 
     // Return default preferences if none exist
     const defaultPreferences = {
-      notifications_enabled: true,
       email_notifications: true,
       marketing_emails: false,
       theme: "light",
@@ -66,7 +65,6 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
     const {
-      notifications_enabled,
       email_notifications,
       marketing_emails,
       theme,
@@ -76,7 +74,6 @@ export async function PUT(request: NextRequest) {
 
     // Use defaults for all fields
     const validatedData: any = {
-      notifications_enabled: typeof notifications_enabled === "boolean" ? notifications_enabled : true,
       email_notifications: typeof email_notifications === "boolean" ? email_notifications : true,
       marketing_emails: typeof marketing_emails === "boolean" ? marketing_emails : false,
       theme: typeof theme === "string" && ["light", "dark", "system"].includes(theme) ? theme : "light",
