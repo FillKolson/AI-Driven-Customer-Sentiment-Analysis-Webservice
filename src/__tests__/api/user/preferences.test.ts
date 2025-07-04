@@ -56,7 +56,6 @@ describe("/api/user/preferences", () => {
       const mockPreferences = {
         id: "pref-123",
         user_id: "user-123",
-        notifications_enabled: true,
         email_notifications: false,
         marketing_emails: true,
         theme: "dark",
@@ -81,7 +80,7 @@ describe("/api/user/preferences", () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.preferences.notifications_enabled).toBe(true);
+      expect(data.preferences.email_notifications).toBe(false); // its needed?
       expect(data.preferences.theme).toBe("dark");
     });
 
@@ -112,7 +111,6 @@ describe("/api/user/preferences", () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.preferences.notifications_enabled).toBe(true);
       expect(data.preferences.email_notifications).toBe(true);
       expect(data.preferences.marketing_emails).toBe(false);
       expect(data.preferences.theme).toBe("light");
@@ -129,7 +127,6 @@ describe("/api/user/preferences", () => {
       const updatedPreferences = {
         id: "pref-123",
         user_id: "user-123",
-        notifications_enabled: false,
         email_notifications: true,
         marketing_emails: false,
         theme: "dark",
@@ -158,7 +155,6 @@ describe("/api/user/preferences", () => {
       });
 
       const requestBody = {
-        notifications_enabled: false,
         email_notifications: true,
         theme: "dark",
       };
@@ -178,7 +174,7 @@ describe("/api/user/preferences", () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.preferences.notifications_enabled).toBe(false);
+      expect(data.preferences.email_notifications).toBe(true); // its needed?
       expect(data.preferences.theme).toBe("dark");
       expect(data.message).toBe("Preferences updated successfully");
     });
@@ -192,7 +188,6 @@ describe("/api/user/preferences", () => {
       const newPreferences = {
         id: "pref-123",
         user_id: "user-123",
-        notifications_enabled: true,
         email_notifications: false,
         marketing_emails: true,
         theme: "light",
@@ -222,7 +217,6 @@ describe("/api/user/preferences", () => {
       });
 
       const requestBody = {
-        notifications_enabled: true,
         email_notifications: false,
         marketing_emails: true,
       };
@@ -242,7 +236,6 @@ describe("/api/user/preferences", () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.preferences.notifications_enabled).toBe(true);
       expect(data.preferences.email_notifications).toBe(false);
     });
 

@@ -210,7 +210,6 @@ export type Database = {
           id: string
           language: string | null
           marketing_emails: boolean | null
-          notifications_enabled: boolean | null
           theme: string | null
           timezone: string | null
           updated_at: string
@@ -222,7 +221,6 @@ export type Database = {
           id?: string
           language?: string | null
           marketing_emails?: boolean | null
-          notifications_enabled?: boolean | null
           theme?: string | null
           timezone?: string | null
           updated_at?: string
@@ -234,7 +232,6 @@ export type Database = {
           id?: string
           language?: string | null
           marketing_emails?: boolean | null
-          notifications_enabled?: boolean | null
           theme?: string | null
           timezone?: string | null
           updated_at?: string

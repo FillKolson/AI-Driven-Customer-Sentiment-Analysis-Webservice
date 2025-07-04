@@ -2,7 +2,6 @@
 CREATE TABLE IF NOT EXISTS public.user_preferences (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    notifications_enabled boolean DEFAULT true,
     email_notifications boolean DEFAULT true,
     marketing_emails boolean DEFAULT false,
     theme text DEFAULT 'light' CHECK (theme IN ('light', 'dark', 'system')),

@@ -76,7 +76,7 @@ export default async function Signup(props: {
                   type="password"
                   name="password"
                   placeholder="Your password"
-                  minLength={6}
+                  minLength={8}
                   required
                   className="w-full"
                 />
