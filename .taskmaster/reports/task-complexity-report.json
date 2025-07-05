@@ -1,0 +1,93 @@
+{
+	"meta": {
+		"generatedAt": "2025-07-01T12:38:42.507Z",
+		"tasksAnalyzed": 10,
+		"totalTasks": 10,
+		"analysisCount": 10,
+		"thresholdScore": 5,
+		"projectName": "Taskmaster",
+		"usedResearch": true
+	},
+	"complexityAnalysis": [
+		{
+			"taskId": 1,
+			"taskTitle": "Setup Project Infrastructure",
+			"complexityScore": 7,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down the project infrastructure setup into detailed steps for repository creation, backend setup, frontend setup, CI/CD configuration, deployment setup, and project structure initialization.",
+			"reasoning": "This task involves multiple technologies and configurations, requiring careful setup and integration. It's foundational for the project, making it moderately complex."
+		},
+		{
+			"taskId": 2,
+			"taskTitle": "Database and Authentication Setup",
+			"complexityScore": 8,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Expand on the Supabase setup process, detailing each step from project creation to database schema configuration, authentication setup, storage configuration, and backend integration.",
+			"reasoning": "Setting up Supabase involves multiple services and configurations, including database design, which requires careful planning and implementation."
+		},
+		{
+			"taskId": 3,
+			"taskTitle": "Authentication API Implementation",
+			"complexityScore": 7,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Detail the implementation of each authentication endpoint, including the necessary middleware, services, and error handling for a robust authentication system.",
+			"reasoning": "Implementing secure authentication involves multiple endpoints and careful handling of user data and tokens, making it a moderately complex task."
+		},
+		{
+			"taskId": 4,
+			"taskTitle": "Anthropic Claude API Integration",
+			"complexityScore": 8,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down the Claude API integration process, focusing on the implementation of sentiment analysis logic, caching, rate limiting, and error handling.",
+			"reasoning": "Integrating with an external AI API and implementing additional features like caching and rate limiting adds significant complexity to this task."
+		},
+		{
+			"taskId": 5,
+			"taskTitle": "Sentiment Analysis API Endpoints",
+			"complexityScore": 9,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Expand on the implementation of sentiment analysis endpoints, detailing the process for single text analysis, batch processing, job queue system, and result storage.",
+			"reasoning": "This task involves complex backend operations, including batch processing and job queues, making it one of the more challenging tasks in the project."
+		},
+		{
+			"taskId": 6,
+			"taskTitle": "User Management API Implementation",
+			"complexityScore": 6,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Detail the implementation of user profile and usage statistics endpoints, including database interactions, aggregation logic, and response formatting.",
+			"reasoning": "While important, this task is relatively straightforward compared to others, focusing on CRUD operations and data aggregation."
+		},
+		{
+			"taskId": 7,
+			"taskTitle": "Stripe Integration for Subscription Management",
+			"complexityScore": 8,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Break down the Stripe integration process, detailing the implementation of subscription endpoints, webhook handling, and usage limit enforcement.",
+			"reasoning": "Integrating a payment system and managing subscriptions involves complex workflows and careful handling of financial data, adding significant complexity."
+		},
+		{
+			"taskId": 8,
+			"taskTitle": "Frontend Authentication and User Profile",
+			"complexityScore": 7,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Expand on the frontend authentication implementation, detailing the setup of React Router, authentication context, and the creation of authentication pages and components.",
+			"reasoning": "Implementing a complete frontend authentication system with multiple pages and state management is moderately complex."
+		},
+		{
+			"taskId": 9,
+			"taskTitle": "Dashboard and Analytics UI",
+			"complexityScore": 9,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Break down the dashboard implementation, focusing on the creation of analysis components, data visualization, history view, and batch processing interface.",
+			"reasoning": "This task involves creating a complex UI with multiple interactive components and data visualizations, making it one of the more challenging frontend tasks."
+		},
+		{
+			"taskId": 10,
+			"taskTitle": "Subscription Management UI",
+			"complexityScore": 7,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Detail the implementation of the subscription management interface, including plan display, checkout flow, usage visualization, and subscription status management.",
+			"reasoning": "While complex, this task is somewhat less challenging than the main dashboard, focusing on subscription-related UI components and interactions."
+		}
+	]
+}

@@ -82,24 +82,44 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { full_name, email } = await request.json();
+    const body = await request.json();
+    const { full_name, email, bio, avatar_url } = body;
 
-    // Update user profile
+    // Validate input
     const updates: any = {};
-    if (full_name) updates.full_name = full_name;
-    if (email && email !== user.email) {
+    if (typeof full_name === "string" && full_name.trim()) {
+      updates.full_name = full_name.trim();
+      updates.name = full_name.trim(); // Keep both for compatibility
+    }
+    if (typeof bio === "string") updates.bio = bio.trim();
+    if (typeof avatar_url === "string") updates.avatar_url = avatar_url;
+
+    // Handle email update separately as it requires auth update
+    if (email && email !== user.email && typeof email === "string") {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return NextResponse.json(
+          { error: "Invalid email format" },
+          { status: 400 },
+        );
+      }
+
       // Update auth email
       const { error: emailError } = await supabase.auth.updateUser({ email });
       if (emailError) {
         return NextResponse.json(
-          { error: "Failed to update email" },
+          { error: "Failed to update email: " + emailError.message },
           { status: 400 },
         );
       }
       updates.email = email;
     }
 
-    if (Object.keys(updates).length > 0) {
+    // Add updated timestamp
+    updates.updated_at = new Date().toISOString();
+
+    if (Object.keys(updates).length > 1) {
+      // More than just updated_at
       const { error: updateError } = await supabase
         .from("users")
         .update(updates)
@@ -108,28 +128,41 @@ export async function PUT(request: NextRequest) {
       if (updateError) {
         console.error("Error updating profile:", updateError);
         return NextResponse.json(
-          { error: "Failed to update profile" },
+          { error: "Failed to update profile: " + updateError.message },
           { status: 500 },
         );
       }
     }
 
     // Return updated profile
-    const { data: profile } = await supabase
+    const { data: profile, error: fetchError } = await supabase
       .from("users")
       .select("*")
       .eq("id", user.id)
       .single();
+
+    if (fetchError) {
+      console.error("Error fetching updated profile:", fetchError);
+      return NextResponse.json(
+        { error: "Failed to fetch updated profile" },
+        { status: 500 },
+      );
+    }
 
     return NextResponse.json({
       user: {
         id: user.id,
         email: profile?.email || user.email,
         full_name: profile?.full_name || profile?.name,
+        bio: profile?.bio || "",
+        avatar_url: profile?.avatar_url,
         subscription_status: profile?.subscription_status || "free",
         api_usage_current_month: profile?.api_usage_current_month || 0,
         api_limit_per_month: profile?.api_limit_per_month || 100,
+        created_at: profile?.created_at,
+        updated_at: profile?.updated_at,
       },
+      message: "Profile updated successfully",
     });
   } catch (error) {
     console.error("Profile update error:", error);

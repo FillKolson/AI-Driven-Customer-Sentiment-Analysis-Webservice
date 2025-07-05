@@ -6,10 +6,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
-import { UserCircle, Home } from "lucide-react";
+import { UserCircle, Settings, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function DashboardNavbar() {
@@ -32,12 +33,24 @@ export default function DashboardNavbar() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link
+                  href="/dashboard/settings"
+                  className="flex items-center gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={async () => {
                   await supabase.auth.signOut();
                   router.push("/");
                 }}
+                className="flex items-center gap-2 text-red-600"
               >
+                <LogOut className="h-4 w-4" />
                 Sign out
               </DropdownMenuItem>
             </DropdownMenuContent>

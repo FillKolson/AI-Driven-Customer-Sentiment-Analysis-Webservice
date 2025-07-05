@@ -203,11 +203,48 @@ export type Database = {
         }
         Relationships: []
       }
+      user_preferences: {
+        Row: {
+          created_at: string
+          email_notifications: boolean | null
+          id: string
+          language: string | null
+          marketing_emails: boolean | null
+          theme: string | null
+          timezone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_notifications?: boolean | null
+          id?: string
+          language?: string | null
+          marketing_emails?: boolean | null
+          theme?: string | null
+          timezone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_notifications?: boolean | null
+          id?: string
+          language?: string | null
+          marketing_emails?: boolean | null
+          theme?: string | null
+          timezone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           api_limit_per_month: number | null
           api_usage_current_month: number | null
           avatar_url: string | null
+          bio: string | null
           created_at: string
           credits: string | null
           email: string | null
@@ -225,6 +262,7 @@ export type Database = {
           api_limit_per_month?: number | null
           api_usage_current_month?: number | null
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           credits?: string | null
           email?: string | null
@@ -242,6 +280,7 @@ export type Database = {
           api_limit_per_month?: number | null
           api_usage_current_month?: number | null
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           credits?: string | null
           email?: string | null
