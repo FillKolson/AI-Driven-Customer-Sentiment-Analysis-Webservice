@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "esnext",
     "lib": [
       "dom",
       "dom.iterable",
@@ -23,6 +23,7 @@
         "name": "next"
       }
     ],
+    "types": ["jest", "@testing-library/jest-dom", "node"],
     "paths": {
       "@/*": [
         "./src/*"
