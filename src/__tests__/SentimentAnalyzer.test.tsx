@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import SentimentAnalyzer from '../components/sentiment-analyzer';
+import { analyzeSentiment, SentimentResult } from "../lib/claudeApi";
 
 const toastMock = jest.fn();
 jest.mock('../components/ui/use-toast', () => ({
@@ -8,6 +9,29 @@ jest.mock('../components/ui/use-toast', () => ({
 }));
 
 global.fetch = jest.fn();
+
+jest.mock("@anthropic-ai/sdk", () => {
+  return {
+    default: jest.fn().mockImplementation(() => ({
+      messages: {
+        create: jest.fn().mockImplementation(async ({ messages }) => {
+          const text = messages[0].content;
+          if (text.includes("error")) throw new Error("Claude API error");
+          if (text.includes("positive")) {
+            return {
+              content: [{ type: "text", text: JSON.stringify({ sentiment: "positive", confidence: 0.95, key_phrases: ["great", "happy"] }) }],
+              usage: { input_tokens: 42 },
+            };
+          }
+          return {
+            content: [{ type: "text", text: JSON.stringify({ sentiment: "neutral", confidence: 0.5, key_phrases: [] }) }],
+            usage: { input_tokens: 10 },
+          };
+        }),
+      },
+    })),
+  };
+});
 
 describe('SentimentAnalyzer', () => {
   const defaultProps = {
@@ -89,5 +113,52 @@ describe('SentimentAnalyzer', () => {
         })
       );
     });
+  });
+});
+
+describe("Claude API Service", () => {
+  const userId = "user-123";
+  const text = "This is a positive review.";
+
+  it("returns sentiment result for valid input", async () => {
+    const result = await analyzeSentiment({ userId, text });
+    expect(result.sentiment).toBe("positive");
+    expect(result.confidence).toBeGreaterThan(0.9);
+    expect(result.key_phrases).toContain("great");
+    expect(result.tokens_used).toBeGreaterThan(0);
+  });
+
+  it("caches results for repeated input", async () => {
+    const first = await analyzeSentiment({ userId, text });
+    const second = await analyzeSentiment({ userId, text });
+    expect(second).toEqual(first);
+  });
+
+  it("enforces rate limiting", async () => {
+    // Simulate hitting the rate limit
+    for (let i = 0; i < 100; i++) {
+      await analyzeSentiment({ userId: "user-rl", text: "neutral" });
+    }
+    await expect(analyzeSentiment({ userId: "user-rl", text: "neutral" })).rejects.toThrow("Rate limit exceeded");
+  });
+
+  it("handles Claude API errors", async () => {
+    await expect(analyzeSentiment({ userId, text: "error" })).rejects.toThrow("Claude API error");
+  });
+
+  it("parses fallback sentiment if JSON is malformed", async () => {
+    // Mock SDK to return malformed JSON
+    const { default: Anthropic } = jest.requireMock("@anthropic-ai/sdk");
+    Anthropic.mockImplementation(() => ({
+      messages: {
+        create: jest.fn().mockResolvedValue({
+          content: [{ type: "text", text: "Definitely positive!" }],
+          usage: { input_tokens: 5 },
+        }),
+      },
+    }));
+    const result = await analyzeSentiment({ userId, text: "Definitely positive!" });
+    expect(result.sentiment).toBe("positive");
+    expect(result.confidence).toBe(0.7);
   });
 }); 

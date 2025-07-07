@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "../../../../../supabase/server";
-import Anthropic from "@anthropic-ai/sdk";
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
-});
+import { analyzeSentiment } from "../../../../lib/claudeApi";
 
 interface SentimentResult {
   sentiment: "positive" | "negative" | "neutral";
@@ -63,59 +59,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Analyze sentiment using Anthropic Claude
-    const prompt = `Analyze the sentiment of the following text and provide a JSON response with the following structure:
-{
-  "sentiment": "positive" | "negative" | "neutral",
-  "confidence": number between 0 and 1,
-  "key_phrases": ["phrase1", "phrase2", "phrase3"]
-}
-
-Text to analyze: "${text}"
-
-Provide only the JSON response, no additional text.`;
-
-    const message = await anthropic.messages.create({
-      model: "claude-3-haiku-20240307",
-      max_tokens: 1000,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
-
-    const responseText =
-      message.content[0].type === "text" ? message.content[0].text : "";
-    let analysisResult;
-
+    // Use Claude API service (with caching, rate limiting, error handling)
+    let result;
     try {
-      analysisResult = JSON.parse(responseText);
-    } catch (parseError) {
-      // Fallback parsing if JSON is malformed
-      const sentiment = responseText.toLowerCase().includes("positive")
-        ? "positive"
-        : responseText.toLowerCase().includes("negative")
-          ? "negative"
-          : "neutral";
-      analysisResult = {
-        sentiment,
-        confidence: 0.7,
-        key_phrases: [],
-      };
+      result = await analyzeSentiment({ userId: user.id, text });
+    } catch (err: any) {
+      if (err.message.includes("Rate limit")) {
+        return NextResponse.json({ error: err.message }, { status: 429 });
+      }
+      if (err.message.includes("Claude API error")) {
+        return NextResponse.json({ error: err.message }, { status: 502 });
+      }
+      return NextResponse.json({ error: err.message }, { status: 500 });
     }
-
-    const processingTime = Date.now() - startTime;
-    const tokensUsed = message.usage?.input_tokens || 0;
-
-    const result: SentimentResult = {
-      sentiment: analysisResult.sentiment,
-      confidence: analysisResult.confidence,
-      key_phrases: analysisResult.key_phrases || [],
-      processing_time_ms: processingTime,
-      tokens_used: tokensUsed,
-    };
 
     // Store the analysis in the database
     const { error: insertError } = await supabase
@@ -125,8 +81,8 @@ Provide only the JSON response, no additional text.`;
         input_text: text,
         sentiment_result: result,
         analysis_type: "single_text",
-        tokens_used: tokensUsed,
-        processing_time_ms: processingTime,
+        tokens_used: result.tokens_used,
+        processing_time_ms: result.processing_time_ms,
       });
 
     if (insertError) {
