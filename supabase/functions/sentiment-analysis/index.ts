@@ -1,11 +1,17 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import express from 'express';
+import { createClient } from '@supabase/supabase-js';
+
+const app = express();
+app.use(express.json());
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+app.options('*', (req, res) => {
+  res.set(corsHeaders).send();
+});
 
 interface SentimentRequest {
   text: string;
@@ -20,30 +26,19 @@ interface SentimentResult {
   tokens_used: number;
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
+app.post('/sentiment-analysis', async (req, res) => {
   try {
-    const { text, user_id }: SentimentRequest = await req.json();
+    const { text, user_id } = req.body;
 
     if (!text || !user_id) {
-      return new Response(
-        JSON.stringify({ error: "Text and user_id are required" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      return res.status(400).set(corsHeaders).json({ error: "Text and user_id are required" });
     }
 
     const startTime = Date.now();
 
-    // Create Supabase client
     const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      process.env.SUPABASE_URL || "",
+      process.env.SUPABASE_SERVICE_ROLE_KEY || ""
     );
 
     // Check user's usage limits
@@ -57,13 +52,7 @@ serve(async (req) => {
       userData &&
       userData.api_usage_current_month >= userData.api_limit_per_month
     ) {
-      return new Response(
-        JSON.stringify({ error: "API usage limit exceeded" }),
-        {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      return res.status(429).set(corsHeaders).json({ error: "API usage limit exceeded" });
     }
 
     // Simple sentiment analysis (replace with Anthropic API call in production)
@@ -148,15 +137,14 @@ serve(async (req) => {
       console.error("Error storing analysis:", insertError);
     }
 
-    return new Response(JSON.stringify(result), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return res.status(200).set(corsHeaders).json(result);
   } catch (error) {
     console.error("Sentiment analysis error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return res.status(500).set(corsHeaders).json({ error: "Internal server error" });
   }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });

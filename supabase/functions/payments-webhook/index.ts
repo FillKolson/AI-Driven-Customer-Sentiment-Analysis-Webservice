@@ -1,6 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@13.6.0?target=deno";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import express from 'express';
+import Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
 
 // Types
 type WebhookEvent = {
@@ -31,15 +31,22 @@ type SubscriptionData = {
   ended_at?: number;
 };
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
+const app = express();
+app.use(express.json({ type: 'application/json' }));
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+  apiVersion: '2025-02-24.acacia',
 });
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+const supabase = createClient(
+  process.env.SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+);
 
 // Utility functions
 async function logAndStoreWebhookEvent(
@@ -90,15 +97,27 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
   if (!userId) {
     try {
       const customer = await stripe.customers.retrieve(subscription.customer);
-      const { data: userData } = await supabaseClient
-        .from('users')
-        .select('id')
-        .eq('email', customer.email)
-        .single();
+      if (customer && 'email' in customer && typeof customer.email === 'string') {
+        const { data: userData } = await supabaseClient
+          .from('users')
+          .select('id')
+          .eq('email', customer.email)
+          .single();
 
-      userId = userData?.id;
-      if (!userId) {
-        throw new Error('User not found');
+        userId = userData?.id;
+        if (!userId) {
+          throw new Error('User not found');
+        }
+      } else {
+        // Handle deleted customer or missing email
+        console.warn('Customer not found or email missing for subscription created event.');
+        return new Response(
+          JSON.stringify({ error: "Unable to find associated user" }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
       }
     } catch (error) {
       console.error('Unable to find associated user:', error);
@@ -446,102 +465,43 @@ async function handleInvoicePaymentFailed(supabaseClient: any, event: any) {
 }
 
 // Main webhook handler
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  const sig = req.headers['stripe-signature'] as string;
+  let event;
 
   try {
-    const signature = req.headers.get('stripe-signature');
-    
-    if (!signature) {
-      console.log("IT DIDN'T WORK")
-      return new Response(
-        JSON.stringify({ error: "No signature found" }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );      
-    }
-
-    const body = await req.text();
-    const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
-    
-    if (!webhookSecret) {
-      return new Response(
-        JSON.stringify({ error: "Webhook secret not configured" }),
-        { 
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    let event;
-    
-    try {
-      event = await stripe.webhooks.constructEventAsync(
-        body,
-        signature,
-        webhookSecret
-      );
-    } catch (err) {
-      console.error('Error verifying webhook signature:', err);
-      return new Response(
-        JSON.stringify({ error: "Invalid signature" }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    console.log('Processing webhook event:', event.type);
-
-    // Create Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET || ''
     );
-
-    // Log the webhook event
-    await logAndStoreWebhookEvent(supabaseClient, event, event.data.object);
-
-    // Handle the event based on type
-    switch (event.type) {
-      case 'customer.subscription.created':
-        return await handleSubscriptionCreated(supabaseClient, event);
-      case 'customer.subscription.updated':
-        return await handleSubscriptionUpdated(supabaseClient, event);
-      case 'customer.subscription.deleted':
-        return await handleSubscriptionDeleted(supabaseClient, event);
-      case 'checkout.session.completed':
-        return await handleCheckoutSessionCompleted(supabaseClient, event);
-      case 'invoice.payment_succeeded':
-        return await handleInvoicePaymentSucceeded(supabaseClient, event);
-      case 'invoice.payment_failed':
-        return await handleInvoicePaymentFailed(supabaseClient, event);
-      default:
-        console.log(`Unhandled event type: ${event.type}`);
-        return new Response(
-          JSON.stringify({ message: `Unhandled event type: ${event.type}` }),
-          { 
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
-    }
-  } catch (err) {
-    console.error('Error processing webhook:', err);
-    return new Response(
-      JSON.stringify({ error: err.message }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+  } catch (err: any) {
+    console.error('Webhook signature verification failed.', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
   }
+
+  // Handle the event
+  switch (event.type) {
+    case 'customer.subscription.created':
+      return handleSubscriptionCreated(supabase, event);
+    case 'customer.subscription.updated':
+      return handleSubscriptionUpdated(supabase, event);
+    case 'customer.subscription.deleted':
+      return handleSubscriptionDeleted(supabase, event);
+    case 'checkout.session.completed':
+      return handleCheckoutSessionCompleted(supabase, event);
+    case 'invoice.payment_succeeded':
+      return handleInvoicePaymentSucceeded(supabase, event);
+    case 'invoice.payment_failed':
+      return handleInvoicePaymentFailed(supabase, event);
+    default:
+      console.log(`Unhandled event type ${event.type}`);
+  }
+
+  res.json({ received: true });
 });
 
-
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
