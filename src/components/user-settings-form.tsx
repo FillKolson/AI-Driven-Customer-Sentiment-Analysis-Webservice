@@ -305,11 +305,14 @@ export default function UserSettingsForm({
                 )}
                 <Button
                   size="sm"
-                  variant="outline"
                   onClick={() => router.push('/pricing')}
                   className="ml-2"
                 >
-                  {subscription?.plan_name === 'none' ? 'Subscribe' : 'Manage'}
+                  {subscription?.plan_name === 'none' ? (
+                    <span>Subscribe</span>
+                  ) : (
+                    <span>Manage</span>
+                  )}
                 </Button>
                 <Badge
                   className={getPlanBadgeColor(subscription?.plan_name || "none")}
@@ -323,19 +326,25 @@ export default function UserSettingsForm({
               <Label className="text-sm font-medium text-gray-500">
                 API Usage This Month
               </Label>
-              <span className="text-sm">
-                {user.api_usage_current_month} / {user.api_limit_per_month}
-              </span>
+              {subscription?.plan_name === 'none' ? (
+                <span className="text-sm text-red-600 font-semibold">API access is unavailable without a subscription.</span>
+              ) : (
+                <span className="text-sm">
+                  {user.api_usage_current_month} / {user.api_limit_per_month}
+                </span>
+              )}
             </div>
 
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{
-                  width: `${Math.min((user.api_usage_current_month / user.api_limit_per_month) * 100, 100)}%`,
-                }}
-              />
-            </div>
+            {subscription?.plan_name !== 'none' && (
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${Math.min((user.api_usage_current_month / user.api_limit_per_month) * 100, 100)}%`,
+                  }}
+                />
+              </div>
+            )}
 
             {subscription && subscription.current_period_end ? (
               <div className="flex items-center justify-between">
