@@ -58,7 +58,7 @@ export default async function SettingsPage() {
             subscription={
               subscription
                 ? {
-                    plan_name: subscription.plan_name || 'free',
+                    plan_name: profile?.subscription_status || 'free',
                     status: subscription.status,
                     current_period_end: subscription.current_period_end,
                   }

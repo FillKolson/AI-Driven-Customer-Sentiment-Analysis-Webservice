@@ -198,42 +198,32 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
   };
 
   // Upsert subscription in database
-  const { data: existingSubscription } = await supabaseClient
-    .from('subscriptions')
-    .select('id')
-    .eq('stripe_id', subscription.id)
-    .maybeSingle();
-
-  const { error } = await supabaseClient
+  await supabaseClient
     .from('subscriptions')
     .upsert({
-      ...(existingSubscription?.id ? { id: existingSubscription.id } : {}),
+      stripe_id: subscription.id,
       ...subscriptionData
     }, {
       onConflict: 'stripe_id'
     });
 
-  if (error) {
-    console.error('Error creating subscription:', error);
-    return new Response(
-      JSON.stringify({ error: "Failed to create subscription" }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  }
+  // Now fetch the subscription row id (guaranteed to exist)
+  const { data: subscriptionRow } = await supabaseClient
+    .from('subscriptions')
+    .select('id')
+    .eq('stripe_id', subscription.id)
+    .maybeSingle();
 
-  // Map Stripe price_id to plan name and API limit
   const priceId = subscription.items.data[0]?.price.id;
   const planInfo = PLAN_INFO[priceId] ?? { name: 'free', limit: 100 };
 
-  // Update the user's API limit and subscription plan name
+  // Update the user's API limit, subscription id, and subscription status (plan name)
   await supabaseClient
     .from('users')
     .update({
       api_limit_per_month: planInfo.limit,
-      subscription: planInfo.name,
+      subscription: subscriptionRow?.id || null,
+      subscription_status: planInfo.name,
     })
     .eq('user_id', userId);
 
@@ -294,7 +284,7 @@ async function handleSubscriptionDeleted(supabaseClient: any, event: any) {
     if (subscription?.metadata?.email) {
       await supabaseClient
         .from("users")
-        .update({ subscription: null })
+        .update({ subscription: null, subscription_status: null })
         .eq("email", subscription.metadata.email);
     }
 
