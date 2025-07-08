@@ -16,6 +16,7 @@ import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { useToast } from "./ui/use-toast";
 import { Loader2, User, CreditCard, Settings, Bell } from "lucide-react";
+import { useRouter } from 'next/navigation';
 
 interface UserData {
   id: string;
@@ -32,6 +33,7 @@ interface SubscriptionData {
   plan_name: string;
   status: string;
   current_period_end: number;
+  cancel_at_period_end: boolean;
 }
 
 interface UserSettingsFormProps {
@@ -53,6 +55,7 @@ export default function UserSettingsForm({
     marketing_emails: false,
   });
   const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchPreferences() {
@@ -271,11 +274,49 @@ export default function UserSettingsForm({
               <Label className="text-sm font-medium text-gray-500">
                 Current Plan
               </Label>
-              <Badge
-                className={getPlanBadgeColor(subscription?.plan_name || "none")}
-              >
-                {(subscription?.plan_name || "none").toUpperCase()}
-              </Badge>
+              <div className="flex items-center gap-2">
+                {['free', 'pro', 'enterprise'].includes(subscription?.plan_name || '') &&
+                  // Hide Unsubscribe if already set to cancel at period end or canceled
+                  !subscription?.cancel_at_period_end && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="ml-2"
+                      onClick={async () => {
+                        setIsLoading(true);
+                        try {
+                          const res = await fetch('/api/user/unsubscribe', { method: 'POST' });
+                          if (!res.ok) throw new Error('Failed to unsubscribe');
+                          toast({ title: 'Unsubscribed', description: 'Your subscription has been cancelled.' });
+                          router.refresh();
+                        } catch (error) {
+                          let message = 'Failed to unsubscribe';
+                          if (error instanceof Error) {
+                            message = error.message;
+                          }
+                          toast({ title: 'Error', description: message, variant: 'destructive' });
+                        } finally {
+                          setIsLoading(false);
+                        }
+                      }}
+                    >
+                      Unsubscribe
+                    </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => router.push('/pricing')}
+                  className="ml-2"
+                >
+                  {subscription?.plan_name === 'none' ? 'Subscribe' : 'Manage'}
+                </Button>
+                <Badge
+                  className={getPlanBadgeColor(subscription?.plan_name || "none")}
+                >
+                  {(subscription?.plan_name || "none").toUpperCase()}
+                </Badge>
+              </div>
             </div>
 
             <div className="flex items-center justify-between">
@@ -296,18 +337,35 @@ export default function UserSettingsForm({
               />
             </div>
 
-            {subscription && (
+            {subscription && subscription.current_period_end ? (
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium text-gray-500">
-                  Next Billing Date
+                  {subscription.cancel_at_period_end
+                    ? 'Subscription ends at'
+                    : 'Next Billing Date'}
                 </Label>
-                <span className="text-sm">
-                  {new Date(
-                    subscription.current_period_end * 1000,
-                  ).toLocaleDateString()}
-                </span>
+                <div className="flex flex-col items-end">
+                  <span className="text-sm">
+                    {new Date(
+                      subscription.current_period_end * 1000,
+                    ).toLocaleDateString()}
+                  </span>
+                  {(() => {
+                    const now = Date.now();
+                    const end = subscription.current_period_end * 1000;
+                    const diffDays = (end - now) / (1000 * 60 * 60 * 24);
+                    if (diffDays < 7 && diffDays > 0) {
+                      return (
+                        <span className="text-sm text-red-600 font-semibold mt-1">
+                          Payment is coming soon!
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
               </div>
-            )}
+            ) : null}
           </div>
         </CardContent>
       </Card>

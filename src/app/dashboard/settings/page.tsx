@@ -50,9 +50,9 @@ export default async function SettingsPage() {
               email: user.email || "",
               full_name: profile?.full_name || profile?.name || "",
               bio: profile?.bio || "",
-              subscription_status: profile?.subscription_status || "free",
-              api_usage_current_month: profile?.api_usage_current_month || 0,
-              api_limit_per_month: profile?.api_limit_per_month || 100,
+              subscription_status: profile?.subscription_status || "none",
+              api_usage_current_month: profile?.api_usage_current_month || "",
+              api_limit_per_month: profile?.api_limit_per_month || "",
               created_at: profile?.created_at || new Date().toISOString(),
             }}
             subscription={
@@ -61,8 +61,14 @@ export default async function SettingsPage() {
                     plan_name: profile?.subscription_status || 'free',
                     status: subscription.status,
                     current_period_end: subscription.current_period_end,
+                    cancel_at_period_end: subscription.cancel_at_period_end ?? false,
                   }
-                : { plan_name: 'none', status: 'none', current_period_end: 0 }
+                : {
+                    plan_name: 'none',
+                    status: 'none',
+                    current_period_end: 0,
+                    cancel_at_period_end: false,
+                  }
             }
           />
         </div>
