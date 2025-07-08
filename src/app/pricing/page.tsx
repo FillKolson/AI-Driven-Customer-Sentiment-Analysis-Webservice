@@ -20,7 +20,7 @@ export default async function Pricing() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
                     {plans?.map((item: any) => (
-                        <PricingCard key={item.id} item={item} user={user} />
+                        <PricingCard key={item.price_id} item={item} user={user} />
                     ))}
                 </div>
             </div>

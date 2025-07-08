@@ -186,8 +186,8 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
     currency: subscription.currency,
     interval: subscription.items.data[0]?.plan.interval,
     status: subscription.status,
-    current_period_start: subscription.current_period_start,
-    current_period_end: subscription.current_period_end,
+    current_period_start: subscription.items.data[0]?.current_period_start,
+    current_period_end: subscription.items.data[0]?.current_period_end,
     cancel_at_period_end: subscription.cancel_at_period_end,
     amount: subscription.items.data[0]?.plan.amount ?? 0,
     started_at: subscription.start_date ?? Math.floor(Date.now() / 1000),
@@ -224,6 +224,19 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
     );
   }
 
+  // Map Stripe price_id to plan name and API limit
+  const priceId = subscription.items.data[0]?.price.id;
+  const planInfo = PLAN_INFO[priceId] ?? { name: 'free', limit: 100 };
+
+  // Update the user's API limit and subscription plan name
+  await supabaseClient
+    .from('users')
+    .update({
+      api_limit_per_month: planInfo.limit,
+      subscription: planInfo.name,
+    })
+    .eq('user_id', userId);
+
   return new Response(
     JSON.stringify({ message: "Subscription created successfully" }),
     { 
@@ -241,8 +254,8 @@ async function handleSubscriptionUpdated(supabaseClient: any, event: any) {
     .from("subscriptions")
     .update({
       status: subscription.status,
-      current_period_start: subscription.current_period_start,
-      current_period_end: subscription.current_period_end,
+      current_period_start: subscription.items.data[0]?.current_period_start,
+      current_period_end: subscription.items.data[0]?.current_period_end,
       cancel_at_period_end: subscription.cancel_at_period_end,
       metadata: subscription.metadata,
       canceled_at: subscription.canceled_at,
@@ -527,6 +540,14 @@ async function handleInvoicePaymentFailed(supabaseClient: any, event: any) {
     );
   }
 }
+
+// Map Stripe price_id to plan name and API limit
+const PLAN_INFO: Record<string, { name: string, limit: number }> = {
+  // Replace these with your actual Stripe price IDs
+  'price_1RiXOuP2WBP7umLnemfXzK4L': { name: 'free', limit: 100 },
+  'price_1RiXPNP2WBP7umLnoxh9cgnL': { name: 'pro', limit: 5000 },
+  'price_1RiXPmP2WBP7umLnzZqcBXdO': { name: 'enterprise', limit: 50000 },
+};
 
 // Main webhook handler
 serve(async (req) => {

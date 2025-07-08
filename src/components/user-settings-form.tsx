@@ -168,6 +168,10 @@ export default function UserSettingsForm({
         return "bg-blue-100 text-blue-800";
       case "enterprise":
         return "bg-purple-100 text-purple-800";
+      case "free":
+        return "bg-green-100 text-green-800";
+      case "none":
+        return "bg-gray-100 text-gray-400";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -268,9 +272,9 @@ export default function UserSettingsForm({
                 Current Plan
               </Label>
               <Badge
-                className={getPlanBadgeColor(subscription?.plan_name || "free")}
+                className={getPlanBadgeColor(subscription?.plan_name || "none")}
               >
-                {subscription?.plan_name?.toUpperCase() || "FREE"}
+                {(subscription?.plan_name || "none").toUpperCase()}
               </Badge>
             </div>
 
