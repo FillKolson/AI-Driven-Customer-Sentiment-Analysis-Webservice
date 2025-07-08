@@ -71,7 +71,7 @@ export default function PricingCard({ item, user }: {
             <CardFooter className="relative">
                 <Button
                     onClick={async () => {
-                        await handleCheckout(item.id)
+                        await handleCheckout(item.price_id)
                     }}
                     className={`w-full py-6 text-lg font-medium`}
                 >

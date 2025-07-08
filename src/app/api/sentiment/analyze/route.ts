@@ -47,6 +47,13 @@ export async function POST(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
+    if (userData && userData.subscription_status === 'none') {
+      return NextResponse.json(
+        { error: 'API access is unavailable without a subscription.' },
+        { status: 403 },
+      );
+    }
+
     if (
       userData &&
       userData.api_usage_current_month >= userData.api_limit_per_month

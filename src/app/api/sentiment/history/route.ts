@@ -14,6 +14,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Fetch user's subscription status
+    const { data: userData } = await supabase
+      .from("users")
+      .select("subscription_status")
+      .eq("id", user.id)
+      .single();
+
+    if (userData && userData.subscription_status === 'none') {
+      return NextResponse.json(
+        { error: 'API access is unavailable without a subscription.' },
+        { status: 403 },
+      );
+    }
+
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");

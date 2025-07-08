@@ -41,6 +41,32 @@ export default function SentimentAnalyzer({
   const [result, setResult] = useState<SentimentResult | null>(null);
   const { toast } = useToast();
 
+  if (subscriptionStatus === 'none') {
+    return (
+      <Card className="bg-white">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-blue-600" />
+            Sentiment Analysis
+          </CardTitle>
+          <CardDescription>
+            Analyze customer feedback and understand sentiment patterns
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center gap-4 py-8">
+            <a
+              href="/pricing"
+              className="inline-flex items-center px-6 py-3 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow"
+            >
+              Get Started Free
+            </a>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const handleAnalyze = async () => {
     if (!text.trim()) {
       toast({

@@ -579,7 +579,7 @@
               1
             ],
             "details": "Develop a server-side endpoint that receives customer details and plan selection, then uses Stripe API to create a new subscription",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -925,7 +925,7 @@
     ],
     "metadata": {
       "created": "2025-06-25T18:07:21.891Z",
-      "updated": "2025-07-02T13:00:40.064Z",
+      "updated": "2025-07-07T11:09:00.491Z",
       "description": "Tasks for master context"
     }
   }

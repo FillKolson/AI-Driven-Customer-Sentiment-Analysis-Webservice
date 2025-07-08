@@ -16,6 +16,7 @@ import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { useToast } from "./ui/use-toast";
 import { Loader2, User, CreditCard, Settings, Bell } from "lucide-react";
+import { useRouter } from 'next/navigation';
 
 interface UserData {
   id: string;
@@ -32,6 +33,7 @@ interface SubscriptionData {
   plan_name: string;
   status: string;
   current_period_end: number;
+  cancel_at_period_end: boolean;
 }
 
 interface UserSettingsFormProps {
@@ -53,6 +55,7 @@ export default function UserSettingsForm({
     marketing_emails: false,
   });
   const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchPreferences() {
@@ -168,6 +171,10 @@ export default function UserSettingsForm({
         return "bg-blue-100 text-blue-800";
       case "enterprise":
         return "bg-purple-100 text-purple-800";
+      case "free":
+        return "bg-green-100 text-green-800";
+      case "none":
+        return "bg-gray-100 text-gray-400";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -233,15 +240,15 @@ export default function UserSettingsForm({
         </CardContent>
       </Card>
 
-      {/* Account Information */}
+      {/* Subscription Management */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
-            <CardTitle>Account Information</CardTitle>
+            <CardTitle>Subscription</CardTitle>
           </div>
           <CardDescription>
-            View your account details and subscription information.
+            Manage your subscription plan and billing.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -267,43 +274,107 @@ export default function UserSettingsForm({
               <Label className="text-sm font-medium text-gray-500">
                 Current Plan
               </Label>
-              <Badge
-                className={getPlanBadgeColor(subscription?.plan_name || "free")}
-              >
-                {subscription?.plan_name?.toUpperCase() || "FREE"}
-              </Badge>
+              <div className="flex items-center gap-2">
+                {['free', 'pro', 'enterprise'].includes(subscription?.plan_name || '') &&
+                  // Hide Unsubscribe if already set to cancel at period end or canceled
+                  !subscription?.cancel_at_period_end && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="ml-2"
+                      onClick={async () => {
+                        setIsLoading(true);
+                        try {
+                          const res = await fetch('/api/user/unsubscribe', { method: 'POST' });
+                          if (!res.ok) throw new Error('Failed to unsubscribe');
+                          toast({ title: 'Unsubscribed', description: 'Your subscription has been cancelled.' });
+                          router.refresh();
+                        } catch (error) {
+                          let message = 'Failed to unsubscribe';
+                          if (error instanceof Error) {
+                            message = error.message;
+                          }
+                          toast({ title: 'Error', description: message, variant: 'destructive' });
+                        } finally {
+                          setIsLoading(false);
+                        }
+                      }}
+                    >
+                      Unsubscribe
+                    </Button>
+                )}
+                <Button
+                  size="sm"
+                  onClick={() => router.push('/pricing')}
+                  className="ml-2"
+                >
+                  {subscription?.plan_name === 'none' ? (
+                    <span>Subscribe</span>
+                  ) : (
+                    <span>Manage</span>
+                  )}
+                </Button>
+                <Badge
+                  className={getPlanBadgeColor(subscription?.plan_name || "none")}
+                >
+                  {(subscription?.plan_name || "none").toUpperCase()}
+                </Badge>
+              </div>
             </div>
 
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium text-gray-500">
                 API Usage This Month
               </Label>
-              <span className="text-sm">
-                {user.api_usage_current_month} / {user.api_limit_per_month}
-              </span>
-            </div>
-
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{
-                  width: `${Math.min((user.api_usage_current_month / user.api_limit_per_month) * 100, 100)}%`,
-                }}
-              />
-            </div>
-
-            {subscription && (
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium text-gray-500">
-                  Next Billing Date
-                </Label>
+              {subscription?.plan_name === 'none' ? (
+                <span className="text-sm text-red-600 font-semibold">API access is unavailable without a subscription.</span>
+              ) : (
                 <span className="text-sm">
-                  {new Date(
-                    subscription.current_period_end * 1000,
-                  ).toLocaleDateString()}
+                  {user.api_usage_current_month} / {user.api_limit_per_month}
                 </span>
+              )}
+            </div>
+
+            {subscription?.plan_name !== 'none' && (
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${Math.min((user.api_usage_current_month / user.api_limit_per_month) * 100, 100)}%`,
+                  }}
+                />
               </div>
             )}
+
+            {subscription && subscription.current_period_end ? (
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium text-gray-500">
+                  {subscription.cancel_at_period_end
+                    ? 'Subscription ends at'
+                    : 'Next Billing Date'}
+                </Label>
+                <div className="flex flex-col items-end">
+                  <span className="text-sm">
+                    {new Date(
+                      subscription.current_period_end * 1000,
+                    ).toLocaleDateString()}
+                  </span>
+                  {(() => {
+                    const now = Date.now();
+                    const end = subscription.current_period_end * 1000;
+                    const diffDays = (end - now) / (1000 * 60 * 60 * 24);
+                    if (diffDays < 7 && diffDays > 0) {
+                      return (
+                        <span className="text-sm text-red-600 font-semibold mt-1">
+                          Payment is coming soon!
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+              </div>
+            ) : null}
           </div>
         </CardContent>
       </Card>
