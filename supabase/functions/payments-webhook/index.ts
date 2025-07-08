@@ -29,10 +29,11 @@ type SubscriptionData = {
   metadata: Record<string, any>;
   canceled_at?: number;
   ended_at?: number;
+  stripe_customer_id: string;
 };
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-  apiVersion: '2023-10-16',
+  apiVersion: '2025-05-28.basil',
   httpClient: Stripe.createFetchHttpClient(),
 });
 
@@ -80,26 +81,80 @@ async function updateSubscriptionStatus(
   }
 }
 
+// Utility function to robustly find user_id
+async function findUserId({ supabaseClient, metadata, customerId, customerEmail }) {
+  // 1. Try metadata.user_id
+  if (metadata?.user_id) {
+    console.log('Found user_id in metadata:', metadata.user_id);
+    return metadata.user_id;
+  }
+
+  // 2. Try latest subscription by customer_id
+  if (customerId) {
+    const { data: sub } = await supabaseClient
+      .from('subscriptions')
+      .select('user_id')
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (sub?.user_id) {
+      console.log('Found user_id in subscriptions:', sub.user_id);
+      return sub.user_id;
+    }
+  }
+
+  // 2b. Try user by stripe_customer_id
+  if (customerId) {
+    const { data: user } = await supabaseClient
+      .from('users')
+      .select('user_id')
+      .eq('stripe_customer_id', customerId)
+      .maybeSingle();
+    if (user?.user_id) {
+      console.log('Found user_id in users by stripe_customer_id:', user.user_id);
+      return user.user_id;
+    }
+  }
+
+  // 3. Try user by email
+  if (customerEmail) {
+    const { data: user } = await supabaseClient
+      .from('users')
+      .select('user_id')
+      .eq('email', customerEmail)
+      .maybeSingle();
+    if (user?.user_id) {
+      console.log('Found user_id in users by email:', user.user_id);
+      return user.user_id;
+    }
+  }
+
+  console.log('No user_id found for customerId:', customerId, 'customerEmail:', customerEmail);
+  return undefined;
+}
+
 // Event handlers
 async function handleSubscriptionCreated(supabaseClient: any, event: any) {
   const subscription = event.data.object;
   console.log('Handling subscription created:', subscription.id);
 
-  // Try to get user information
-  let userId = subscription.metadata?.user_id || subscription.metadata?.userId;
+  // Robustly find user_id
+  let userId = await findUserId({
+    supabaseClient,
+    metadata: subscription.metadata,
+    customerId: subscription.customer,
+    customerEmail: undefined // We'll fetch below if needed
+  });
+
+  // If still not found, try fetching Stripe customer for email
   if (!userId) {
     try {
       const customer = await stripe.customers.retrieve(subscription.customer);
-      const { data: userData } = await supabaseClient
-        .from('users')
-        .select('id')
-        .eq('email', customer.email)
-        .single();
-
-      userId = userData?.id;
-      if (!userId) {
-        throw new Error('User not found');
-      }
+      userId = await findUserId({
+        supabaseClient,
+        customerEmail: customer.email
+      });
     } catch (error) {
       console.error('Unable to find associated user:', error);
       return new Response(
@@ -110,6 +165,17 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
         }
       );
     }
+  }
+
+  if (!userId) {
+    console.error('No user_id found for subscription', subscription.id);
+    return new Response(
+      JSON.stringify({ error: "No user_id found for subscription" }),
+      { 
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 
   const subscriptionData: SubscriptionData = {
@@ -131,22 +197,19 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
     ended_at: subscription.ended_at
   };
 
-  // First, check if a subscription with this stripe_id already exists
+  // Upsert subscription in database
   const { data: existingSubscription } = await supabaseClient
     .from('subscriptions')
     .select('id')
     .eq('stripe_id', subscription.id)
     .maybeSingle();
 
-  // Update subscription in database
   const { error } = await supabaseClient
     .from('subscriptions')
     .upsert({
-      // If we found an existing subscription, use its UUID, otherwise let Supabase generate one
       ...(existingSubscription?.id ? { id: existingSubscription.id } : {}),
       ...subscriptionData
     }, {
-      // Use stripe_id as the match key for upsert
       onConflict: 'stripe_id'
     });
 
@@ -245,14 +308,11 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
   const session = event.data.object;
   console.log('Handling checkout session completed:', session.id);
   console.log('Full session data:', JSON.stringify(session, null, 2));
-  
+
   const subscriptionId = typeof session.subscription === 'string' 
     ? session.subscription 
     : session.subscription?.id;
-  
-  console.log('Extracted subscriptionId:', subscriptionId);
-  console.log('Session metadata:', JSON.stringify(session.metadata, null, 2));
-  
+
   if (!subscriptionId) {
     console.log('No subscription ID found in checkout session');
     return new Response(
@@ -264,77 +324,100 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
     );
   }
 
-  try {
-    console.log('Attempting to update subscription in Stripe with ID:', subscriptionId);
-    console.log('Metadata to be added:', {
-      ...session.metadata,
-      checkoutSessionId: session.id
-    });
-    
-    // Fetch the current subscription from Stripe to get the latest status
-    const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
-    console.log('Retrieved Stripe subscription status:', stripeSubscription.status);
-    
-    const updatedStripeSubscription = await stripe.subscriptions.update(
-      subscriptionId,
-      { 
-        metadata: {
-          ...session.metadata,
-          checkoutSessionId: session.id
+  // Robustly find user_id
+  let userId = await findUserId({
+    supabaseClient,
+    metadata: session.metadata,
+    customerId: session.customer,
+    customerEmail: session.customer_email
+  });
+
+  if (!userId) {
+    // Try fetching Stripe customer for email
+    try {
+      const customer = await stripe.customers.retrieve(session.customer);
+      userId = await findUserId({
+        supabaseClient,
+        customerEmail: customer.email
+      });
+    } catch (error) {
+      console.error('Unable to find associated user for checkout session:', error);
+      return new Response(
+        JSON.stringify({ error: "Unable to find associated user for checkout session" }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
-      }
-    );
-    
-    console.log('Successfully updated Stripe subscription:', updatedStripeSubscription.id);
-    console.log('Updated Stripe metadata:', JSON.stringify(updatedStripeSubscription.metadata, null, 2));
-
-    console.log('Attempting to update subscription in Supabase with stripe_id:', subscriptionId);
-    console.log('User ID being set:', session.metadata?.userId || session.metadata?.user_id);
-    
-    const supabaseUpdateResult = await supabaseClient
-      .from("subscriptions")
-      .update({
-        metadata: {
-          ...session.metadata,
-          checkoutSessionId: session.id
-        },
-        user_id: session.metadata?.userId || session.metadata?.user_id,
-        status: stripeSubscription.status, // Update the status from Stripe
-        current_period_start: stripeSubscription.current_period_start,
-        current_period_end: stripeSubscription.current_period_end,
-        cancel_at_period_end: stripeSubscription.cancel_at_period_end
-      })
-      .eq("stripe_id", subscriptionId);
-    
-    console.log('Supabase update result:', JSON.stringify(supabaseUpdateResult, null, 2));
-    
-    if (supabaseUpdateResult.error) {
-      console.error('Error updating Supabase subscription:', supabaseUpdateResult.error);
-      throw new Error(`Supabase update failed: ${supabaseUpdateResult.error.message}`);
+      );
     }
+  }
 
+  if (!userId) {
+    console.error('No user_id found for checkout session', session.id);
     return new Response(
-      JSON.stringify({ 
-        message: "Checkout session completed successfully",
-        subscriptionId 
-      }),
+      JSON.stringify({ error: "No user_id found for checkout session" }),
       { 
-        status: 200,
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
-  } catch (error) {
-    console.error('Error processing checkout completion:', error);
-    console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
-    console.error('Error stack:', error.stack);
+  }
+
+  // Fetch the current subscription from Stripe to get the latest status
+  const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+  // Upsert subscription in database
+  const { data: existingSubscription } = await supabaseClient
+    .from('subscriptions')
+    .select('id')
+    .eq('stripe_id', subscriptionId)
+    .maybeSingle();
+
+  const { error } = await supabaseClient
+    .from('subscriptions')
+    .upsert({
+      ...(existingSubscription?.id ? { id: existingSubscription.id } : {}),
+      stripe_id: subscriptionId,
+      user_id: userId,
+      price_id: stripeSubscription.items.data[0]?.price.id,
+      stripe_price_id: stripeSubscription.items.data[0]?.price.id,
+      currency: stripeSubscription.currency,
+      interval: stripeSubscription.items.data[0]?.plan.interval,
+      status: stripeSubscription.status,
+      current_period_start: stripeSubscription.current_period_start,
+      current_period_end: stripeSubscription.current_period_end,
+      cancel_at_period_end: stripeSubscription.cancel_at_period_end,
+      amount: stripeSubscription.items.data[0]?.plan.amount ?? 0,
+      started_at: stripeSubscription.start_date ?? Math.floor(Date.now() / 1000),
+      customer_id: stripeSubscription.customer,
+      metadata: session.metadata || {},
+      canceled_at: stripeSubscription.canceled_at,
+      ended_at: stripeSubscription.ended_at
+    }, {
+      onConflict: 'stripe_id'
+    });
+
+  if (error) {
+    console.error('Error upserting subscription from checkout session:', error);
     return new Response(
-      JSON.stringify({ error: "Failed to process checkout completion", details: error.message }),
+      JSON.stringify({ error: "Failed to upsert subscription from checkout session" }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
   }
+
+  return new Response(
+    JSON.stringify({ 
+      message: "Checkout session completed successfully",
+      subscriptionId 
+    }),
+    { 
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    }
+  );
 }
 
 async function handleInvoicePaymentSucceeded(supabaseClient: any, event: any) {

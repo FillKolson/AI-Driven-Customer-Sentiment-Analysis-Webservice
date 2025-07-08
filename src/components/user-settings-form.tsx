@@ -233,15 +233,15 @@ export default function UserSettingsForm({
         </CardContent>
       </Card>
 
-      {/* Account Information */}
+      {/* Subscription Management */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
-            <CardTitle>Account Information</CardTitle>
+            <CardTitle>Subscription</CardTitle>
           </div>
           <CardDescription>
-            View your account details and subscription information.
+            Manage your subscription plan and billing.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
