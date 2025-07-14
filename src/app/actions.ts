@@ -66,38 +66,25 @@ export const signUpAction = async (formData: FormData) => {
     },
   });
 
-  if (error) {
-    return encodedRedirect("error", "/sign-up", error.message);
-  }
+ // Check if email exists in public.users
+  const { data: userInPublic, error: publicUserError } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", email)
+    .single();
 
-  if (user) {
-    try {
-      const { error: updateError } = await supabase.from("users").insert({
-        id: user.id,
-        user_id: user.id,
-        name: fullName,
-        email: email,
-        token_identifier: user.id,
-        created_at: new Date().toISOString(),
-      });
-
-      if (updateError) {
-        // Error handling without console.error
-        return encodedRedirect(
-          "error",
-          "/sign-up",
-          "Error updating user. Please try again.",
-        );
-      }
-    } catch (err) {
-      // Error handling without console.error
-      return encodedRedirect(
-        "error",
-        "/sign-up",
-        "Error updating user. Please try again.",
-      );
-    }
+  if (!userInPublic || publicUserError) {
+    return encodedRedirect(
+      "error",
+      "/sign-in",
+      "This email is already registered. Please sign in or use a different email."
+    );
   }
+  
+
+  // Always show the message to check email for verification
+  // The user will be added to public.users only after email is verified (handled by webhook or scheduled job)
+  // TODO: Implement a webhook or background job to insert into public.users after email verification
 
   return encodedRedirect(
     "success",
