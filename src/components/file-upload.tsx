@@ -1,0 +1,377 @@
+"use client";
+
+import { useState, useRef } from "react";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Progress } from "./ui/progress";
+import { Loader2, Upload, FileText, AlertCircle, CheckCircle, XCircle } from "lucide-react";
+import { useToast } from "./ui/use-toast";
+
+interface FileUploadProps {
+  userId: string;
+  currentUsage: number;
+  usageLimit: number;
+  subscriptionStatus: string;
+  onAnalysisComplete: (results: any) => void;
+}
+
+interface ParsedText {
+  id: string;
+  text: string;
+  lineNumber: number;
+}
+
+export default function FileUpload({
+  userId,
+  currentUsage,
+  usageLimit,
+  subscriptionStatus,
+  onAnalysisComplete,
+}: FileUploadProps) {
+  const [file, setFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [parsedTexts, setParsedTexts] = useState<ParsedText[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  if (subscriptionStatus === 'none') {
+    return (
+      <Card className="bg-white">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Upload className="w-5 h-5 text-blue-600" />
+            Batch Analysis
+          </CardTitle>
+          <CardDescription>
+            Upload CSV or TXT files to analyze multiple texts at once
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center gap-4 py-8">
+            <a
+              href="/pricing"
+              className="inline-flex items-center px-6 py-3 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow"
+            >
+              Get Started Free
+            </a>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (!selectedFile) return;
+
+    // Validate file type
+    const allowedTypes = ['text/csv', 'text/plain', 'application/csv'];
+    const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase();
+    
+    if (!allowedTypes.includes(selectedFile.type) && !['csv', 'txt'].includes(fileExtension || '')) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload a CSV or TXT file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (selectedFile.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Please upload a file smaller than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setFile(selectedFile);
+    parseFile(selectedFile);
+  };
+
+  const parseFile = async (file: File) => {
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim().length > 0);
+      
+      if (lines.length === 0) {
+        toast({
+          title: "Empty File",
+          description: "The file contains no valid text to analyze",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (lines.length > 100) {
+        toast({
+          title: "Too Many Lines",
+          description: "Maximum 100 lines per file. Please split your data into smaller files.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const parsed: ParsedText[] = lines.map((line, index) => ({
+        id: `line_${index}`,
+        text: line.trim(),
+        lineNumber: index + 1,
+      }));
+
+      setParsedTexts(parsed);
+      setUploadProgress(100);
+
+      toast({
+        title: "File Parsed Successfully",
+        description: `Found ${parsed.length} texts to analyze`,
+      });
+
+    } catch (error) {
+      console.error("Error parsing file:", error);
+      toast({
+        title: "Error Parsing File",
+        description: "Could not read the file. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleAnalyze = async () => {
+    if (!parsedTexts.length) {
+      toast({
+        title: "No Texts to Analyze",
+        description: "Please upload a file first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (currentUsage + parsedTexts.length > usageLimit) {
+      toast({
+        title: "Usage Limit Exceeded",
+        description: `This analysis would use ${parsedTexts.length} API calls, but you only have ${usageLimit - currentUsage} remaining.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setAnalysisProgress(0);
+
+    try {
+      const texts = parsedTexts.map(item => item.text);
+      
+      const response = await fetch("/api/sentiment/batch-analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ texts }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Batch analysis failed");
+      }
+
+      const data = await response.json();
+      setAnalysisProgress(100);
+
+      toast({
+        title: "Batch Analysis Complete",
+        description: `Successfully analyzed ${data.summary.successful} out of ${data.summary.total_processed} texts`,
+      });
+
+      onAnalysisComplete(data);
+
+    } catch (error) {
+      console.error("Batch analysis error:", error);
+      toast({
+        title: "Analysis Failed",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleClear = () => {
+    setFile(null);
+    setParsedTexts([]);
+    setUploadProgress(0);
+    setAnalysisProgress(0);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const getFileIcon = () => {
+    if (!file) return <Upload className="w-8 h-8 text-gray-400" />;
+    return <FileText className="w-8 h-8 text-blue-600" />;
+  };
+
+  const getFileStatus = () => {
+    if (isUploading) return "Uploading...";
+    if (isAnalyzing) return "Analyzing...";
+    if (parsedTexts.length > 0) return "Ready to analyze";
+    return "No file selected";
+  };
+
+  return (
+    <Card className="bg-white">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Upload className="w-5 h-5 text-blue-600" />
+          Batch Analysis
+        </CardTitle>
+        <CardDescription>
+          Upload CSV or TXT files to analyze multiple texts at once
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-6">
+        {/* File Upload Area */}
+        <div className="space-y-4">
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.txt"
+              onChange={handleFileSelect}
+              className="hidden"
+              disabled={isUploading || isAnalyzing}
+            />
+            
+            <div className="space-y-4">
+              {getFileIcon()}
+              
+              <div>
+                <p className="text-sm text-gray-600">
+                  {file ? file.name : "Click to upload or drag and drop"}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  CSV or TXT files up to 5MB, max 100 lines
+                </p>
+              </div>
+
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading || isAnalyzing}
+                variant="outline"
+                className="bg-blue-50 hover:bg-blue-100"
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Choose File
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Upload Progress */}
+          {isUploading && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Parsing file...</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <Progress value={uploadProgress} className="h-2" />
+            </div>
+          )}
+
+          {/* File Info */}
+          {file && parsedTexts.length > 0 && (
+            <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <span className="font-medium">{file.name}</span>
+                </div>
+                <Badge variant="secondary">{parsedTexts.length} texts</Badge>
+              </div>
+              
+              <div className="text-sm text-gray-600">
+                <p>File size: {(file.size / 1024).toFixed(1)} KB</p>
+                <p>Texts to analyze: {parsedTexts.length}</p>
+                <p>Estimated API calls: {parsedTexts.length}</p>
+              </div>
+
+              {/* Usage Warning */}
+              {currentUsage + parsedTexts.length > usageLimit * 0.8 && (
+                <div className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded">
+                  <AlertCircle className="w-4 h-4 text-amber-600" />
+                  <span className="text-sm text-amber-800">
+                    This will use {parsedTexts.length} of your remaining {usageLimit - currentUsage} API calls
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3">
+          <Button
+            onClick={handleAnalyze}
+            disabled={
+              !parsedTexts.length ||
+              isAnalyzing ||
+              isUploading ||
+              currentUsage + parsedTexts.length > usageLimit
+            }
+            className="flex-1 bg-blue-600 hover:bg-blue-700"
+          >
+            {isAnalyzing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              "Analyze All Texts"
+            )}
+          </Button>
+
+          {file && (
+            <Button
+              onClick={handleClear}
+              variant="outline"
+              disabled={isAnalyzing || isUploading}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+
+        {/* Analysis Progress */}
+        {isAnalyzing && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>Analyzing texts...</span>
+              <span>{analysisProgress}%</span>
+            </div>
+            <Progress value={analysisProgress} className="h-2" />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+} 
