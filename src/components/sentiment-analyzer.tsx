@@ -14,6 +14,7 @@ import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { Loader2, TrendingUp, TrendingDown, Minus, Zap } from "lucide-react";
 import { useToast } from "./ui/use-toast";
+import UsageDisplay from "./usage-display";
 
 interface SentimentResult {
   sentiment: "positive" | "negative" | "neutral";
@@ -158,20 +159,13 @@ export default function SentimentAnalyzer({
         </CardDescription>
 
         {/* Usage Indicator */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">API Usage</span>
-            <span className="font-medium">
-              {currentUsage}/{usageLimit} calls
-            </span>
-          </div>
-          <Progress value={usagePercentage} className="h-2" />
-          {usagePercentage > 80 && (
-            <p className="text-sm text-amber-600">
-              You're approaching your usage limit. Consider upgrading your plan.
-            </p>
-          )}
-        </div>
+        <UsageDisplay
+          currentUsage={currentUsage}
+          usageLimit={usageLimit}
+          showDetails={false}
+          showWarnings={true}
+          size="md"
+        />
       </CardHeader>
 
       <CardContent className="space-y-6">

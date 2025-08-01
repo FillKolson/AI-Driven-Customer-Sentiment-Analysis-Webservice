@@ -213,6 +213,7 @@ export type Database = {
           theme: string | null
           timezone: string | null
           updated_at: string
+          usage_notifications: boolean | null
           user_id: string
         }
         Insert: {
@@ -224,6 +225,7 @@ export type Database = {
           theme?: string | null
           timezone?: string | null
           updated_at?: string
+          usage_notifications?: boolean | null
           user_id: string
         }
         Update: {
@@ -235,6 +237,7 @@ export type Database = {
           theme?: string | null
           timezone?: string | null
           updated_at?: string
+          usage_notifications?: boolean | null
           user_id?: string
         }
         Relationships: []

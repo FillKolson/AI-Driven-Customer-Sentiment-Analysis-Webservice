@@ -67,6 +67,7 @@ export async function PUT(request: NextRequest) {
     const {
       email_notifications,
       marketing_emails,
+      usage_notifications,
       theme,
       language,
       timezone,
@@ -76,6 +77,7 @@ export async function PUT(request: NextRequest) {
     const validatedData: any = {
       email_notifications: typeof email_notifications === "boolean" ? email_notifications : true,
       marketing_emails: typeof marketing_emails === "boolean" ? marketing_emails : false,
+      usage_notifications: typeof usage_notifications === "boolean" ? usage_notifications : true,
       theme: typeof theme === "string" && ["light", "dark", "system"].includes(theme) ? theme : "light",
       language: typeof language === "string" ? language : "en",
       timezone: typeof timezone === "string" ? timezone : "UTC",

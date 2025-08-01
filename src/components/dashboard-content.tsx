@@ -6,6 +6,7 @@ import FileUpload from "@/components/file-upload";
 import BatchAnalysisResults from "@/components/batch-analysis-results";
 import DashboardStats from "@/components/dashboard-stats";
 import RecentAnalyses from "@/components/recent-analyses";
+import UsageNotification from "@/components/usage-notification";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Zap, Upload } from "lucide-react";
 
@@ -48,6 +49,14 @@ export default function DashboardContent({
           </p>
         </header>
 
+        {/* Usage Notifications */}
+        <UsageNotification
+          userId={userId}
+          currentUsage={currentUsage}
+          usageLimit={usageLimit}
+          subscriptionStatus={subscriptionStatus}
+        />
+
         {/* Stats Overview */}
         <DashboardStats userId={userId} />
 
@@ -55,15 +64,15 @@ export default function DashboardContent({
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Analysis Tools */}
           <div className="lg:col-span-2">
-            <Tabs defaultValue="single" className="w-full">
+            <Tabs defaultValue="batch" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="single" className="flex items-center gap-2">
-                  <Zap className="w-4 h-4" />
-                  Single Analysis
-                </TabsTrigger>
                 <TabsTrigger value="batch" className="flex items-center gap-2">
                   <Upload className="w-4 h-4" />
                   Batch Analysis
+                </TabsTrigger>
+                <TabsTrigger value="single" className="flex items-center gap-2">
+                  <Zap className="w-4 h-4" />
+                  Single Analysis
                 </TabsTrigger>
               </TabsList>
 
