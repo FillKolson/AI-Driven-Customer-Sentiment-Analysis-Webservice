@@ -35,7 +35,9 @@ export async function GET(request: NextRequest) {
       .select("*")
       .eq("user_id", user.id)
       .eq("status", "active")
-      .single();
+      .order("current_period_end", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     return NextResponse.json({
       user: {

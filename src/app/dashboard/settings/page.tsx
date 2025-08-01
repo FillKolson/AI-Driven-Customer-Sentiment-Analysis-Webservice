@@ -22,13 +22,15 @@ export default async function SettingsPage() {
     .eq("id", user.id)
     .single();
 
-  // Get subscription info
+  // Get subscription info - get the latest active subscription
   const { data: subscription } = await supabase
     .from("subscriptions")
     .select("*")
     .eq("user_id", user.id)
     .eq("status", "active")
-    .single();
+    .order("current_period_end", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   return (
     <div className="min-h-screen bg-gray-50">

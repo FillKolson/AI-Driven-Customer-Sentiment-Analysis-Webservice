@@ -22,15 +22,40 @@ serve(async (req) => {
   }
 
   try {
-    const { subscription_id } = await req.json();
+    console.log('Cancel subscription function called');
+    
+    const body = await req.json();
+    console.log('Request body:', body);
+    
+    const { subscription_id } = body;
     if (!subscription_id) {
+      console.error('Missing subscription_id in request');
       throw new Error('Missing subscription_id');
+    }
+
+    // Validate subscription ID format
+    if (!subscription_id.startsWith('sub_')) {
+      console.error('Invalid subscription ID format:', subscription_id);
+      throw new Error('Invalid subscription ID format. Expected format: sub_*');
+    }
+
+    console.log('Canceling subscription:', subscription_id);
+
+    // Check if the subscription exists in Stripe first
+    try {
+      const existingSubscription = await stripe.subscriptions.retrieve(subscription_id);
+      console.log('Found existing subscription:', existingSubscription.id);
+    } catch (stripeError) {
+      console.error('Stripe subscription not found:', stripeError);
+      throw new Error('Subscription not found in Stripe: ' + (stripeError instanceof Error ? stripeError.message : 'Unknown error'));
     }
 
     // Cancel the subscription in Stripe
     const canceled = await stripe.subscriptions.update(subscription_id, {
       cancel_at_period_end: true,
     });
+
+    console.log('Stripe cancellation result:', canceled);
 
     // Update the subscription status in the database
     const { error } = await supabase
@@ -43,8 +68,11 @@ serve(async (req) => {
       .eq('stripe_id', subscription_id);
 
     if (error) {
+      console.error('Database update error:', error);
       throw error;
     }
+
+    console.log('Subscription canceled successfully');
 
     return new Response(
       JSON.stringify({ status: canceled.status, cancel_at_period_end: canceled.cancel_at_period_end }),

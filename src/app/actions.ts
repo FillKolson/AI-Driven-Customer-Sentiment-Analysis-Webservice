@@ -191,7 +191,10 @@ export const checkUserSubscription = async (userId: string) => {
     .select("*")
     .eq("user_id", userId)
     .eq("status", "active")
-    .single();
+    .order("current_period_end", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
 
   if (error) {
     // For now, allow free tier access
