@@ -1,11 +1,28 @@
-#!/bin/bash
-
 # Deploy the payments webhook without JWT verification
 echo "Deploying payments-webhook function with JWT verification disabled..."
 supabase functions deploy payments-webhook --no-verify-jwt
 
-# You can add other webhook deployments here
-# echo "Deploying other-webhook function with JWT verification disabled..."
-# supabase functions deploy other-webhook --no-verify-jwt
+# Deploy the cancel-subscription function
+echo "Deploying cancel-subscription function..."
+supabase functions deploy cancel-subscription
 
-echo "All webhook functions deployed successfully!"
+# Deploy other necessary functions
+echo "Deploying create-checkout function..."
+supabase functions deploy create-checkout
+
+echo "Deploying create-portal-session function..."
+supabase functions deploy create-portal-session
+
+echo "Deploying get-plans function..."
+supabase functions deploy get-plans
+
+echo "Deploying get-subscription-status function..."
+supabase functions deploy get-subscription-status
+
+echo "Deploying update-subscription function..."
+supabase functions deploy update-subscription
+
+echo "Deploying sentiment-analysis function..."
+supabase functions deploy sentiment-analysis
+
+echo "All functions deployed successfully!"
