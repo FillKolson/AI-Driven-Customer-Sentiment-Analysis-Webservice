@@ -147,16 +147,20 @@ export async function POST(request: NextRequest) {
         successful++;
 
         // Store individual analysis in database
-        await supabase
+        const { error: insertError } = await supabase
           .from("sentiment_analyses")
           .insert({
             user_id: user.id,
             input_text: text,
             sentiment_result: result,
-            analysis_type: "batch_analysis",
+            analysis_type: "batch_file",
             tokens_used: result.tokens_used,
             processing_time_ms: itemProcessingTime,
           });
+
+        if (insertError) {
+          console.error("Error storing batch analysis:", insertError);
+        }
 
       } catch (error: any) {
         console.error(`Error analyzing text ${i}:`, error);
