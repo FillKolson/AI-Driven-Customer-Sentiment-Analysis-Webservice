@@ -27,9 +27,13 @@ import {
   Search,
   Filter,
   ArrowLeft,
+  Download,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import DashboardNavbar from "@/components/dashboard-navbar";
+import { useToast } from "@/components/ui/use-toast";
+import { Toaster } from "@/components/ui/toaster";
 
 interface Analysis {
   id: string;
@@ -63,6 +67,11 @@ export default function HistoryPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sentimentFilter, setSentimentFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [downloading, setDownloading] = useState(false);
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const { toast } = useToast();
 
   const fetchAnalyses = async (page: number = 1) => {
     setLoading(true);
@@ -74,6 +83,14 @@ export default function HistoryPage() {
 
       if (sentimentFilter !== "all") {
         params.append("sentiment", sentimentFilter);
+      }
+      
+      if (dateFrom) {
+        params.append("date_from", dateFrom);
+      }
+      
+      if (dateTo) {
+        params.append("date_to", dateTo);
       }
 
       const response = await fetch(`/api/sentiment/history?${params}`);
@@ -91,7 +108,7 @@ export default function HistoryPage() {
 
   useEffect(() => {
     fetchAnalyses(currentPage);
-  }, [currentPage, sentimentFilter]);
+  }, [currentPage, sentimentFilter, dateFrom, dateTo]);
 
   const getSentimentIcon = (sentiment: string) => {
     switch (sentiment) {
@@ -131,6 +148,71 @@ export default function HistoryPage() {
     });
   };
 
+  const handleDownloadCSV = async () => {
+    setDownloading(true);
+    try {
+      const params = new URLSearchParams();
+      
+      if (sentimentFilter !== "all") {
+        params.append("sentiment", sentimentFilter);
+      }
+      
+      if (dateFrom) {
+        params.append("date_from", dateFrom);
+      }
+      
+      if (dateTo) {
+        params.append("date_to", dateTo);
+      }
+
+      const response = await fetch(`/api/sentiment/history/download?${params}`);
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        
+        // Create filename with filters
+        let filename = `sentiment-analysis-history-${new Date().toISOString().split('T')[0]}`;
+        if (sentimentFilter !== "all") {
+          filename += `-${sentimentFilter}`;
+        }
+        if (dateFrom || dateTo) {
+          filename += "-filtered";
+        }
+        filename += ".csv";
+        
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        toast({
+          title: "Download Successful",
+          description: "Your sentiment analysis history has been downloaded as CSV",
+        });
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast({
+          title: "Download Failed",
+          description: errorData.error || "Failed to download CSV file",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error downloading CSV:", error);
+      toast({
+        title: "Download Failed",
+        description: "An error occurred while downloading the CSV file",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const filteredAnalyses = analyses.filter(
     (analysis) =>
       searchTerm === "" ||
@@ -143,6 +225,7 @@ export default function HistoryPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <DashboardNavbar />
+      <Toaster />
       <main className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
@@ -193,8 +276,72 @@ export default function HistoryPage() {
                     <SelectItem value="neutral">Neutral</SelectItem>
                   </SelectContent>
                 </Select>
+                <Button
+                  onClick={() => setShowDateFilter(!showDateFilter)}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Date Filter
+                </Button>
+                <Button
+                  onClick={handleDownloadCSV}
+                  disabled={downloading || pagination.total === 0}
+                  variant="outline"
+                  size="sm"
+                  title={
+                    sentimentFilter !== "all" || dateFrom || dateTo
+                      ? `Download filtered data (${sentimentFilter !== "all" ? sentimentFilter : "all sentiments"}${dateFrom || dateTo ? ", date filtered" : ""})`
+                      : "Download all sentiment analysis history"
+                  }
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  {downloading ? "Downloading..." : "Download CSV"}
+                </Button>
               </div>
             </div>
+            
+            {/* Date Filter Section */}
+            {showDateFilter && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      From Date
+                    </label>
+                    <Input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      To Date
+                    </label>
+                    <Input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button
+                      onClick={() => {
+                        setDateFrom("");
+                        setDateTo("");
+                      }}
+                      variant="ghost"
+                      size="sm"
+                    >
+                      Clear Dates
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardHeader>
 
           <CardContent>
