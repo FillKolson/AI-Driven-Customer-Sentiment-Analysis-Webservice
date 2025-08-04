@@ -6,7 +6,6 @@ import FileUpload from "@/components/file-upload";
 import BatchAnalysisResults from "@/components/batch-analysis-results";
 import DashboardStats from "@/components/dashboard-stats";
 import RecentAnalyses from "@/components/recent-analyses";
-import UsageNotification from "@/components/usage-notification";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Zap, Upload } from "lucide-react";
 
@@ -49,14 +48,6 @@ export default function DashboardContent({
           </p>
         </header>
 
-        {/* Usage Notifications */}
-        <UsageNotification
-          userId={userId}
-          currentUsage={currentUsage}
-          usageLimit={usageLimit}
-          subscriptionStatus={subscriptionStatus}
-        />
-
         {/* Stats Overview */}
         <DashboardStats userId={userId} />
 
@@ -98,18 +89,15 @@ export default function DashboardContent({
 
             {/* Batch Analysis Results */}
             {showBatchResults && batchResults && (
-              <div className="mt-8">
-                <BatchAnalysisResults
-                  results={batchResults.results}
-                  summary={batchResults.summary}
-                  onClose={handleCloseBatchResults}
-                />
-              </div>
+              <BatchAnalysisResults
+                results={batchResults}
+                onClose={handleCloseBatchResults}
+              />
             )}
           </div>
 
           {/* Recent Analyses */}
-          <div className="lg:col-span-1">
+          <div className="space-y-6">
             <RecentAnalyses userId={userId} />
           </div>
         </div>
