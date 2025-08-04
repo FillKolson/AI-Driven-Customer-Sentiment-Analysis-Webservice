@@ -53,6 +53,7 @@ export default function UserSettingsForm({
     bio: user.bio || "",
     email_notifications: true,
     marketing_emails: false,
+    usage_notifications: true,
   });
   const { toast } = useToast();
   const router = useRouter();
@@ -68,6 +69,7 @@ export default function UserSettingsForm({
             ...prev,
             email_notifications: result.preferences.email_notifications ?? true,
             marketing_emails: result.preferences.marketing_emails ?? false,
+            usage_notifications: result.preferences.usage_notifications ?? true,
           }));
         }
       } catch (error) {
@@ -135,6 +137,7 @@ export default function UserSettingsForm({
         body: JSON.stringify({
           email_notifications: formData.email_notifications,
           marketing_emails: formData.marketing_emails,
+          usage_notifications: formData.usage_notifications,
         }),
       });
 
@@ -445,6 +448,32 @@ export default function UserSettingsForm({
                       setFormData({
                         ...formData,
                         marketing_emails: e.target.checked,
+                      })
+                    }
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label
+                      htmlFor="usage_notifications"
+                      className="text-sm font-medium"
+                    >
+                      Usage Notifications
+                    </Label>
+                    <p className="text-xs text-gray-500">
+                      Get alerts when approaching your API usage limits
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    id="usage_notifications"
+                    checked={formData.usage_notifications}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        usage_notifications: e.target.checked,
                       })
                     }
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"

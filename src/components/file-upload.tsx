@@ -316,11 +316,27 @@ export default function FileUpload({
               </div>
 
               {/* Usage Warning */}
-              {currentUsage + parsedTexts.length > usageLimit * 0.8 && (
+              {currentUsage + parsedTexts.length > usageLimit && (
+                <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded">
+                  <XCircle className="w-4 h-4 text-red-600" />
+                  <span className="text-sm text-red-800 font-medium">
+                    ❌ This analysis would exceed your usage limit. Please upgrade your plan.
+                  </span>
+                </div>
+              )}
+              {currentUsage + parsedTexts.length > usageLimit * 0.95 && currentUsage + parsedTexts.length <= usageLimit && (
+                <div className="flex items-center gap-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                  <AlertCircle className="w-4 h-4 text-orange-600" />
+                  <span className="text-sm text-orange-800 font-medium">
+                    ⚠️ Critical: This will use most of your remaining API calls. Consider upgrading.
+                  </span>
+                </div>
+              )}
+              {currentUsage + parsedTexts.length > usageLimit * 0.8 && currentUsage + parsedTexts.length <= usageLimit * 0.95 && (
                 <div className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded">
                   <AlertCircle className="w-4 h-4 text-amber-600" />
                   <span className="text-sm text-amber-800">
-                    This will use {parsedTexts.length} of your remaining {usageLimit - currentUsage} API calls
+                    ⚠️ This will use {parsedTexts.length} of your remaining {usageLimit - currentUsage} API calls
                   </span>
                 </div>
               )}

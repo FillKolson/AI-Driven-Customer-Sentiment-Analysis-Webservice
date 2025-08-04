@@ -55,15 +55,15 @@ export default function DashboardContent({
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Analysis Tools */}
           <div className="lg:col-span-2">
-            <Tabs defaultValue="single" className="w-full">
+            <Tabs defaultValue="batch" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="single" className="flex items-center gap-2">
-                  <Zap className="w-4 h-4" />
-                  Single Analysis
-                </TabsTrigger>
                 <TabsTrigger value="batch" className="flex items-center gap-2">
                   <Upload className="w-4 h-4" />
                   Batch Analysis
+                </TabsTrigger>
+                <TabsTrigger value="single" className="flex items-center gap-2">
+                  <Zap className="w-4 h-4" />
+                  Single Analysis
                 </TabsTrigger>
               </TabsList>
 
@@ -89,18 +89,15 @@ export default function DashboardContent({
 
             {/* Batch Analysis Results */}
             {showBatchResults && batchResults && (
-              <div className="mt-8">
-                <BatchAnalysisResults
-                  results={batchResults.results}
-                  summary={batchResults.summary}
-                  onClose={handleCloseBatchResults}
-                />
-              </div>
+              <BatchAnalysisResults
+                results={batchResults}
+                onClose={handleCloseBatchResults}
+              />
             )}
           </div>
 
           {/* Recent Analyses */}
-          <div className="lg:col-span-1">
+          <div className="space-y-6">
             <RecentAnalyses userId={userId} />
           </div>
         </div>
