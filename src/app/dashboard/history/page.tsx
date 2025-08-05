@@ -29,6 +29,7 @@ import {
   ArrowLeft,
   Download,
   Calendar,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import DashboardNavbar from "@/components/dashboard-navbar";
@@ -58,6 +59,7 @@ interface PaginationInfo {
 
 export default function HistoryPage() {
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
+  const [allAnalyses, setAllAnalyses] = useState<Analysis[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo>({
     page: 1,
     limit: 20,
@@ -107,9 +109,45 @@ export default function HistoryPage() {
     }
   };
 
+  const fetchAllAnalyses = async () => {
+    try {
+      const params = new URLSearchParams();
+
+      if (sentimentFilter !== "all") {
+        params.append("sentiment", sentimentFilter);
+      }
+      
+      if (dateFrom) {
+        params.append("date_from", dateFrom);
+      }
+      
+      if (dateTo) {
+        params.append("date_to", dateTo);
+      }
+
+      const response = await fetch(`/api/sentiment/history/stats?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        setAllAnalyses(data.analyses || []);
+      }
+    } catch (error) {
+      console.error("Error fetching all analyses:", error);
+    }
+  };
+
   useEffect(() => {
     fetchAnalyses(currentPage);
+    fetchAllAnalyses();
   }, [currentPage, sentimentFilter, dateFrom, dateTo]);
+
+  // Auto-refresh data every 30 seconds to catch new analyses
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchAllAnalyses();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [sentimentFilter, dateFrom, dateTo]);
 
   const getSentimentIcon = (sentiment: string) => {
     switch (sentiment) {
@@ -146,6 +184,15 @@ export default function HistoryPage() {
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+    });
+  };
+
+  const handleRefresh = async () => {
+    await fetchAnalyses(currentPage);
+    await fetchAllAnalyses();
+    toast({
+      title: "Data Refreshed",
+      description: "Analysis history has been updated",
     });
   };
 
@@ -247,7 +294,7 @@ export default function HistoryPage() {
         </div>
 
         {/* Data Visualizations */}
-        <HistoryVisualizations analyses={analyses} loading={loading} />
+        <HistoryVisualizations analyses={allAnalyses} loading={loading} />
 
         <Card className="bg-white">
           <CardHeader>
@@ -287,6 +334,15 @@ export default function HistoryPage() {
                 >
                   <Calendar className="w-4 h-4 mr-2" />
                   Date Filter
+                </Button>
+                <Button
+                  onClick={handleRefresh}
+                  variant="outline"
+                  size="sm"
+                  title="Refresh data to see latest analyses"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
                 </Button>
                 <Button
                   onClick={handleDownloadCSV}
