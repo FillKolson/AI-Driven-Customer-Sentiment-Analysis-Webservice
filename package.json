@@ -38,6 +38,7 @@
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.54.2",
     "react-resizable-panels": "^2.1.7",
+    "recharts": "^3.1.2",
     "stripe": "^17.6.0",
     "supabase": "^2.30.4",
     "tempo-devtools": "^2.0.108",

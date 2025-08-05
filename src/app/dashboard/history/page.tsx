@@ -34,6 +34,7 @@ import Link from "next/link";
 import DashboardNavbar from "@/components/dashboard-navbar";
 import { useToast } from "@/components/ui/use-toast";
 import { Toaster } from "@/components/ui/toaster";
+import HistoryVisualizations from "@/components/history-visualizations";
 
 interface Analysis {
   id: string;
@@ -244,6 +245,9 @@ export default function HistoryPage() {
             </p>
           </div>
         </div>
+
+        {/* Data Visualizations */}
+        <HistoryVisualizations analyses={analyses} loading={loading} />
 
         <Card className="bg-white">
           <CardHeader>

@@ -90,7 +90,19 @@ export default function DashboardContent({
             {/* Batch Analysis Results */}
             {showBatchResults && batchResults && (
               <BatchAnalysisResults
-                results={batchResults}
+                results={batchResults.results || batchResults}
+                summary={batchResults.summary || {
+                  total_processed: batchResults.length || 0,
+                  successful: batchResults.filter((r: any) => !r.error).length || 0,
+                  failed: batchResults.filter((r: any) => r.error).length || 0,
+                  total_tokens: batchResults.reduce((sum: number, r: any) => sum + (r.tokens_used || 0), 0),
+                  total_processing_time: batchResults.reduce((sum: number, r: any) => sum + (r.processing_time_ms || 0), 0),
+                  sentiment_distribution: {
+                    positive: batchResults.filter((r: any) => r.sentiment === 'positive').length || 0,
+                    negative: batchResults.filter((r: any) => r.sentiment === 'negative').length || 0,
+                    neutral: batchResults.filter((r: any) => r.sentiment === 'neutral').length || 0,
+                  }
+                }}
                 onClose={handleCloseBatchResults}
               />
             )}
