@@ -11,6 +11,17 @@ interface BatchAnalysisResult {
   processing_time_ms: number;
   tokens_used: number;
   error?: string;
+  metrics?: {
+    review_id?: string;
+    customer_id?: string;
+    product_id?: string;
+    review_date?: string;
+    gender?: string;
+    age?: number;
+    country?: string;
+    language?: string;
+    category_of_product?: string;
+  };
 }
 
 interface BatchAnalysisResponse {
@@ -49,6 +60,9 @@ export async function POST(request: NextRequest) {
     if (!texts || !Array.isArray(texts) || texts.length === 0) {
       return NextResponse.json({ error: "Texts array is required" }, { status: 400 });
     }
+
+    // Check if texts include metrics (for CSV files)
+    const hasMetrics = texts.some((text: any) => typeof text === 'object' && text.text && text.metrics);
 
     if (texts.length > 100) {
       return NextResponse.json(
@@ -95,9 +109,32 @@ export async function POST(request: NextRequest) {
     let failed = 0;
 
     for (let i = 0; i < texts.length; i++) {
-      const text = texts[i];
+      const textItem = texts[i];
+      let text: string;
+      let metrics: any = {};
       
-      if (!text || typeof text !== "string" || text.trim().length === 0) {
+      // Handle both string and object formats
+      if (typeof textItem === 'string') {
+        text = textItem;
+      } else if (typeof textItem === 'object' && textItem.text) {
+        text = textItem.text;
+        metrics = textItem.metrics || {};
+      } else {
+        results.push({
+          id: `item_${i}`,
+          text: "",
+          sentiment: "neutral",
+          confidence: 0,
+          key_phrases: [],
+          processing_time_ms: 0,
+          tokens_used: 0,
+          error: "Invalid text format",
+        });
+        failed++;
+        continue;
+      }
+      
+      if (!text || text.trim().length === 0) {
         results.push({
           id: `item_${i}`,
           text: text || "",
@@ -140,6 +177,7 @@ export async function POST(request: NextRequest) {
           key_phrases: result.key_phrases,
           processing_time_ms: itemProcessingTime,
           tokens_used: result.tokens_used,
+          metrics: Object.keys(metrics).length > 0 ? metrics : undefined,
         });
 
         totalTokens += result.tokens_used;
@@ -156,6 +194,16 @@ export async function POST(request: NextRequest) {
             analysis_type: "batch_file",
             tokens_used: result.tokens_used,
             processing_time_ms: itemProcessingTime,
+            // Add metric fields if available
+            ...(metrics.review_id && { review_id: metrics.review_id }),
+            ...(metrics.customer_id && { customer_id: metrics.customer_id }),
+            ...(metrics.product_id && { product_id: metrics.product_id }),
+            ...(metrics.review_date && { review_date: metrics.review_date }),
+            ...(metrics.gender && { gender: metrics.gender }),
+            ...(metrics.age && { age: metrics.age }),
+            ...(metrics.country && { country: metrics.country }),
+            ...(metrics.language && { language: metrics.language }),
+            ...(metrics.category_of_product && { category_of_product: metrics.category_of_product }),
           });
 
         if (insertError) {

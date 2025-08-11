@@ -5,8 +5,9 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
-import { Loader2, Upload, FileText, AlertCircle, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, Upload, FileText, AlertCircle, CheckCircle, XCircle, Info } from "lucide-react";
 import { useToast } from "./ui/use-toast";
+import { parseCSVWithMetrics, validateCSVStructure, ParsedCSVRow } from "../lib/csvParser";
 
 interface FileUploadProps {
   userId: string;
@@ -20,6 +21,7 @@ interface ParsedText {
   id: string;
   text: string;
   lineNumber: number;
+  metrics?: any;
 }
 
 export default function FileUpload({
@@ -35,6 +37,8 @@ export default function FileUpload({
   const [parsedTexts, setParsedTexts] = useState<ParsedText[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [columnMapping, setColumnMapping] = useState<any>(null);
+  const [csvValidation, setCsvValidation] = useState<{ isValid: boolean; errors: string[]; warnings: string[] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -101,39 +105,103 @@ export default function FileUpload({
 
     try {
       const text = await file.text();
-      const lines = text.split('\n').filter(line => line.trim().length > 0);
       
-      if (lines.length === 0) {
+      // Check if it's a CSV file
+      if (file.name.toLowerCase().endsWith('.csv')) {
+        // Parse CSV with metrics
+        const validation = validateCSVStructure(text);
+        setCsvValidation(validation);
+        
+        if (!validation.isValid) {
+          toast({
+            title: "CSV Validation Failed",
+            description: validation.errors.join(', '),
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        if (validation.warnings.length > 0) {
+          toast({
+            title: "CSV Warnings",
+            description: validation.warnings.join(', '),
+            variant: "default",
+          });
+        }
+        
+        const { rows, columnMapping: mapping } = parseCSVWithMetrics(text);
+        
+        if (rows.length === 0) {
+          toast({
+            title: "No Valid Data",
+            description: "The CSV contains no valid rows to analyze",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        if (rows.length > 100) {
+          toast({
+            title: "Too Many Rows",
+            description: "Maximum 100 rows per file. Please split your data into smaller files.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        const parsed: ParsedText[] = rows.map(row => ({
+          id: row.id,
+          text: row.text,
+          lineNumber: row.lineNumber,
+          metrics: row.metrics
+        }));
+        
+        setParsedTexts(parsed);
+        setColumnMapping(mapping);
+        setUploadProgress(100);
+        
         toast({
-          title: "Empty File",
-          description: "The file contains no valid text to analyze",
-          variant: "destructive",
+          title: "CSV Parsed Successfully",
+          description: `Found ${parsed.length} rows with ${Object.keys(mapping).length} detected columns`,
         });
-        return;
-      }
+        
+      } else {
+        // Parse as plain text (existing logic)
+        const lines = text.split('\n').filter(line => line.trim().length > 0);
+        
+        if (lines.length === 0) {
+          toast({
+            title: "Empty File",
+            description: "The file contains no valid text to analyze",
+            variant: "destructive",
+          });
+          return;
+        }
 
-      if (lines.length > 100) {
+        if (lines.length > 100) {
+          toast({
+            title: "Too Many Lines",
+            description: "Maximum 100 lines per file. Please split your data into smaller files.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const parsed: ParsedText[] = lines.map((line, index) => ({
+          id: `line_${index}`,
+          text: line.trim(),
+          lineNumber: index + 1,
+        }));
+
+        setParsedTexts(parsed);
+        setColumnMapping(null);
+        setUploadProgress(100);
+
         toast({
-          title: "Too Many Lines",
-          description: "Maximum 100 lines per file. Please split your data into smaller files.",
-          variant: "destructive",
+          title: "File Parsed Successfully",
+          description: `Found ${parsed.length} texts to analyze`,
         });
-        return;
       }
-
-      const parsed: ParsedText[] = lines.map((line, index) => ({
-        id: `line_${index}`,
-        text: line.trim(),
-        lineNumber: index + 1,
-      }));
-
-      setParsedTexts(parsed);
-      setUploadProgress(100);
-
-      toast({
-        title: "File Parsed Successfully",
-        description: `Found ${parsed.length} texts to analyze`,
-      });
 
     } catch (error) {
       console.error("Error parsing file:", error);
@@ -170,7 +238,16 @@ export default function FileUpload({
     setAnalysisProgress(0);
 
     try {
-      const texts = parsedTexts.map(item => item.text);
+      // Prepare texts with metrics for CSV files
+      const texts = parsedTexts.map(item => {
+        if (item.metrics) {
+          return {
+            text: item.text,
+            metrics: item.metrics
+          };
+        }
+        return item.text;
+      });
       
       const response = await fetch("/api/sentiment/batch-analyze", {
         method: "POST",
@@ -212,6 +289,8 @@ export default function FileUpload({
     setParsedTexts([]);
     setUploadProgress(0);
     setAnalysisProgress(0);
+    setColumnMapping(null);
+    setCsvValidation(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -314,6 +393,39 @@ export default function FileUpload({
                 <p>Texts to analyze: {parsedTexts.length}</p>
                 <p>Estimated API calls: {parsedTexts.length}</p>
               </div>
+
+              {/* Column Mapping Info for CSV files */}
+              {columnMapping && (
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Info className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800">Detected Columns</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {Object.entries(columnMapping).map(([key, value]) => (
+                      <div key={key} className="flex justify-between">
+                        <span className="text-blue-700">{key.replace(/_/g, ' ')}:</span>
+                        <span className="text-blue-600 font-mono">Column {value as number}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* CSV Validation Warnings */}
+              {csvValidation && csvValidation.warnings.length > 0 && (
+                <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600" />
+                    <span className="text-sm font-medium text-amber-800">CSV Warnings</span>
+                  </div>
+                  <div className="text-xs text-amber-700">
+                    {csvValidation.warnings.map((warning, index) => (
+                      <p key={index}>• {warning}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Usage Warning */}
               {currentUsage + parsedTexts.length > usageLimit && (
