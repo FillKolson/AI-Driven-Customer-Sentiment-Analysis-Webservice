@@ -41,7 +41,12 @@ export function parseCSVWithMetrics(csvContent: string): {
   columnMapping: CSVColumnMapping;
   totalColumns: number;
 } {
-  const lines = csvContent.split('\n').filter(line => line.trim().length > 0);
+  // Handle different line endings (Windows \r\n, Unix \n, old Mac \r)
+  const lines = csvContent
+    .replace(/\r\n/g, '\n') // Convert Windows line endings to Unix
+    .replace(/\r/g, '\n')   // Convert old Mac line endings to Unix
+    .split('\n')
+    .filter(line => line.trim().length > 0);
   
   if (lines.length === 0) {
     throw new Error('CSV file is empty');
@@ -49,7 +54,7 @@ export function parseCSVWithMetrics(csvContent: string): {
 
   // Parse header row to detect column mapping
   const headerRow = lines[0];
-  const headers = parseCSVRow(headerRow);
+  const headers = parseCSVRowEnhanced(headerRow);
   const columnMapping = detectColumnMapping(headers);
   
   // Parse data rows
@@ -59,20 +64,27 @@ export function parseCSVWithMetrics(csvContent: string): {
     const line = lines[i];
     if (line.trim().length === 0) continue;
     
-    const values = parseCSVRow(line);
-    const metrics = extractMetrics(values, columnMapping);
-    
-    // Ensure we have text content
-    if (!metrics.input_text || metrics.input_text.trim().length === 0) {
-      continue; // Skip rows without text content
+    try {
+      const values = parseCSVRowEnhanced(line);
+      const metrics = extractMetrics(values, columnMapping);
+      
+      // Ensure we have text content
+      if (!metrics.input_text || metrics.input_text.trim().length === 0) {
+        console.warn(`Skipping row ${i + 1}: No text content found`);
+        continue; // Skip rows without text content
+      }
+      
+      rows.push({
+        id: `row_${i}`,
+        text: metrics.input_text,
+        lineNumber: i + 1,
+        metrics
+      });
+    } catch (error) {
+      console.error(`Error parsing row ${i + 1}:`, error);
+      console.error('Row content:', line);
+      // Continue with next row instead of failing completely
     }
-    
-    rows.push({
-      id: `row_${i}`,
-      text: metrics.input_text,
-      lineNumber: i + 1,
-      metrics
-    });
   }
   
   return {
@@ -268,6 +280,41 @@ function parseCSVRow(row: string): string[] {
 }
 
 /**
+ * Enhanced CSV row parser with better error handling
+ * @param row - Single CSV row as string
+ * @returns Array of field values
+ */
+function parseCSVRowEnhanced(row: string): string[] {
+  try {
+    // First try the standard parser
+    return parseCSVRow(row);
+  } catch (error) {
+    // If standard parser fails, try a more lenient approach
+    console.warn('Standard CSV parsing failed, trying lenient parser:', error);
+    
+    // Split by comma and handle basic cases
+    const parts = row.split(',');
+    const result: string[] = [];
+    
+    for (let i = 0; i < parts.length; i++) {
+      let part = parts[i].trim();
+      
+      // Remove surrounding quotes if they exist
+      if (part.startsWith('"') && part.endsWith('"')) {
+        part = part.slice(1, -1);
+      }
+      
+      // Handle double quotes (escaped quotes)
+      part = part.replace(/""/g, '"');
+      
+      result.push(part);
+    }
+    
+    return result;
+  }
+}
+
+/**
  * Validate that the CSV has the minimum required structure
  * @param csvContent - Raw CSV content
  * @returns Validation result with any errors
@@ -281,27 +328,82 @@ export function validateCSVStructure(csvContent: string): {
   const warnings: string[] = [];
   
   try {
-    const { rows, columnMapping, totalColumns } = parseCSVWithMetrics(csvContent);
+    // Handle different line endings (Windows \r\n, Unix \n, old Mac \r)
+    const lines = csvContent
+      .replace(/\r\n/g, '\n') // Convert Windows line endings to Unix
+      .replace(/\r/g, '\n')   // Convert old Mac line endings to Unix
+      .split('\n')
+      .filter(line => line.trim().length > 0);
     
-    if (rows.length === 0) {
-      errors.push('No valid data rows found in CSV');
+    if (lines.length === 0) {
+      errors.push('CSV file is empty');
+      return { isValid: false, errors, warnings };
     }
     
-    if (totalColumns < 1) {
-      errors.push('CSV must have at least one column');
+    if (lines.length < 2) {
+      errors.push('CSV must have at least a header row and one data row');
+      return { isValid: false, errors, warnings };
     }
     
+    // Try to parse the header first
+    const headerRow = lines[0];
+    let headers: string[];
+    
+    try {
+      headers = parseCSVRowEnhanced(headerRow);
+    } catch (error) {
+      errors.push(`Failed to parse CSV header: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      errors.push('Please ensure your CSV has proper comma-separated values');
+      return { isValid: false, errors, warnings };
+    }
+    
+    if (headers.length === 0) {
+      errors.push('CSV header is empty');
+      return { isValid: false, errors, warnings };
+    }
+    
+    // Check if we can identify a text column
+    const columnMapping = detectColumnMapping(headers);
     if (columnMapping.input_text === undefined) {
       errors.push('Could not identify text column in CSV headers');
+      errors.push('Expected one of: input_text, text, review, comment, feedback, description, content');
+      errors.push(`Found headers: ${headers.join(', ')}`);
+      return { isValid: false, errors, warnings };
+    }
+    
+    // Try to parse a few data rows to check for issues
+    let validRows = 0;
+    let totalRows = 0;
+    
+    for (let i = 1; i < Math.min(lines.length, 5); i++) { // Check first 5 rows
+      const line = lines[i];
+      if (line.trim().length === 0) continue;
+      
+      totalRows++;
+      try {
+        const values = parseCSVRowEnhanced(line);
+        const metrics = extractMetrics(values, columnMapping);
+        
+        if (metrics.input_text && metrics.input_text.trim().length > 0) {
+          validRows++;
+        }
+      } catch (error) {
+        errors.push(`Error parsing row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+    
+    if (validRows === 0 && totalRows > 0) {
+      errors.push('No valid data rows found in CSV');
+      errors.push('Please ensure your CSV has proper text content in the identified text column');
     }
     
     // Check for potential issues
-    if (totalColumns > 20) {
+    if (headers.length > 20) {
       warnings.push('CSV has many columns - some may not be recognized');
     }
     
-    if (rows.length > 100) {
-      warnings.push('CSV has more than 100 rows - only first 100 will be processed');
+    if (lines.length > 10000) {
+      warnings.push('CSV has more than 10000 rows - only first 10000 will be processed');
     }
     
     return {

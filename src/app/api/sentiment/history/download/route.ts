@@ -66,6 +66,7 @@ export async function GET(request: NextRequest) {
     const csvHeaders = [
       "ID",
       "Input Text",
+      "File Name",
       "Sentiment",
       "Confidence (%)",
       "Key Phrases",
@@ -78,6 +79,7 @@ export async function GET(request: NextRequest) {
     const csvRows = analyses?.map((analysis) => [
       analysis.id,
       `"${analysis.input_text.replace(/"/g, '""')}"`, // Escape quotes in text
+      analysis.file_name || "Single Analysis",
       analysis.sentiment_result.sentiment,
       Math.round(analysis.sentiment_result.confidence * 100),
       `"${analysis.sentiment_result.key_phrases.join(", ")}"`,

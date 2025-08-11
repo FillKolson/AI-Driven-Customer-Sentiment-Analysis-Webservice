@@ -85,11 +85,11 @@ export default function FileUpload({
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (selectedFile.size > 5 * 1024 * 1024) {
+    // Validate file size (max 10MB)
+    if (selectedFile.size > 10 * 1024 * 1024) {
       toast({
         title: "File Too Large",
-        description: "Please upload a file smaller than 5MB",
+        description: "Please upload a file smaller than 10MB",
         variant: "destructive",
       });
       return;
@@ -140,10 +140,10 @@ export default function FileUpload({
           return;
         }
         
-        if (rows.length > 100) {
+        if (rows.length > 10000) {
           toast({
             title: "Too Many Rows",
-            description: "Maximum 100 rows per file. Please split your data into smaller files.",
+            description: "Maximum 10000 rows per file. Please split your data into smaller files.",
             variant: "destructive",
           });
           return;
@@ -178,10 +178,10 @@ export default function FileUpload({
           return;
         }
 
-        if (lines.length > 100) {
+        if (lines.length > 10000) {
           toast({
             title: "Too Many Lines",
-            description: "Maximum 100 lines per file. Please split your data into smaller files.",
+            description: "Maximum 10000 lines per file. Please split your data into smaller files.",
             variant: "destructive",
           });
           return;
@@ -254,7 +254,10 @@ export default function FileUpload({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ texts }),
+        body: JSON.stringify({ 
+          texts,
+          fileName: file?.name || "unknown_file"
+        }),
       });
 
       if (!response.ok) {
@@ -341,7 +344,7 @@ export default function FileUpload({
                   {file ? file.name : "Click to upload or drag and drop"}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  CSV or TXT files up to 5MB, max 100 lines
+                  CSV or TXT files up to 10MB, max 10000 lines
                 </p>
               </div>
 

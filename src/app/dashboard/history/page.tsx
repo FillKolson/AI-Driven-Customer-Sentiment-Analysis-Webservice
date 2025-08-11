@@ -48,6 +48,8 @@ interface Analysis {
   created_at: string;
   tokens_used: number;
   processing_time_ms: number;
+  file_name?: string;
+  analysis_type?: string;
 }
 
 interface PaginationInfo {
@@ -69,6 +71,8 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [sentimentFilter, setSentimentFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("date");
+  const [sortOrder, setSortOrder] = useState("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const [downloading, setDownloading] = useState(false);
   const [showDateFilter, setShowDateFilter] = useState(false);
@@ -82,6 +86,8 @@ export default function HistoryPage() {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: "20",
+        sort_by: sortBy,
+        sort_order: sortOrder,
       });
 
       if (sentimentFilter !== "all") {
@@ -111,7 +117,10 @@ export default function HistoryPage() {
 
   const fetchAllAnalyses = async () => {
     try {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({
+        sort_by: sortBy,
+        sort_order: sortOrder,
+      });
 
       if (sentimentFilter !== "all") {
         params.append("sentiment", sentimentFilter);
@@ -138,7 +147,7 @@ export default function HistoryPage() {
   useEffect(() => {
     fetchAnalyses(currentPage);
     fetchAllAnalyses();
-  }, [currentPage, sentimentFilter, dateFrom, dateTo]);
+  }, [currentPage, sentimentFilter, sortBy, sortOrder, dateFrom, dateTo]);
 
   // Auto-refresh data every 30 seconds to catch new analyses
   useEffect(() => {
@@ -147,7 +156,7 @@ export default function HistoryPage() {
     }, 30000); // 30 seconds
 
     return () => clearInterval(interval);
-  }, [sentimentFilter, dateFrom, dateTo]);
+  }, [sentimentFilter, sortBy, sortOrder, dateFrom, dateTo]);
 
   const getSentimentIcon = (sentiment: string) => {
     switch (sentiment) {
@@ -267,7 +276,8 @@ export default function HistoryPage() {
       analysis.input_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
       analysis.sentiment_result.key_phrases.some((phrase) =>
         phrase.toLowerCase().includes(searchTerm.toLowerCase()),
-      ),
+      ) ||
+      (analysis.file_name && analysis.file_name.toLowerCase().includes(searchTerm.toLowerCase())),
   );
 
   return (
@@ -325,6 +335,31 @@ export default function HistoryPage() {
                     <SelectItem value="positive">Positive</SelectItem>
                     <SelectItem value="negative">Negative</SelectItem>
                     <SelectItem value="neutral">Neutral</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={sortBy}
+                  onValueChange={setSortBy}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date">Date</SelectItem>
+                    <SelectItem value="file_name">File Name</SelectItem>
+                    <SelectItem value="sentiment">Sentiment</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={sortOrder}
+                  onValueChange={setSortOrder}
+                >
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="desc">↓</SelectItem>
+                    <SelectItem value="asc">↑</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button
@@ -431,6 +466,7 @@ export default function HistoryPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Text</TableHead>
+                        <TableHead>File Name</TableHead>
                         <TableHead>Sentiment</TableHead>
                         <TableHead>Confidence</TableHead>
                         <TableHead>Key Phrases</TableHead>
@@ -444,6 +480,11 @@ export default function HistoryPage() {
                             <p className="text-sm">
                               {truncateText(analysis.input_text, 80)}
                             </p>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-gray-600">
+                              {analysis.file_name || "Single Analysis"}
+                            </span>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -505,6 +546,14 @@ export default function HistoryPage() {
                   {filteredAnalyses.map((analysis) => (
                     <Card key={analysis.id} className="p-4">
                       <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500 font-medium">
+                            {analysis.file_name || "Single Analysis"}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {formatDate(analysis.created_at)}
+                          </span>
+                        </div>
                         <p className="text-sm text-gray-900">
                           {truncateText(analysis.input_text, 120)}
                         </p>
@@ -527,9 +576,6 @@ export default function HistoryPage() {
                               %
                             </span>
                           </div>
-                          <span className="text-xs text-gray-500">
-                            {formatDate(analysis.created_at)}
-                          </span>
                         </div>
 
                         {analysis.sentiment_result.key_phrases.length > 0 && (

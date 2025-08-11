@@ -141,7 +141,7 @@ REV002,CUST002`;
       const result = validateCSVStructure(csvContent);
       
       expect(result.isValid).toBe(true);
-      expect(result.warnings).toContain('CSV has more than 100 rows - only first 100 will be processed');
+      expect(result.warnings).toContain('CSV has more than 10000 rows - only first 10000 will be processed');
     });
 
     it('should provide warnings for many columns', () => {

@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get request body
-    const { texts, fileType = "csv" } = await request.json();
+    const { texts, fileType = "csv", fileName } = await request.json();
 
     if (!texts || !Array.isArray(texts) || texts.length === 0) {
       return NextResponse.json({ error: "Texts array is required" }, { status: 400 });
@@ -64,9 +64,9 @@ export async function POST(request: NextRequest) {
     // Check if texts include metrics (for CSV files)
     const hasMetrics = texts.some((text: any) => typeof text === 'object' && text.text && text.metrics);
 
-    if (texts.length > 100) {
+    if (texts.length > 10000) {
       return NextResponse.json(
-        { error: "Maximum 100 texts per batch analysis" },
+        { error: "Maximum 10000 texts per batch analysis" },
         { status: 400 },
       );
     }
@@ -192,6 +192,7 @@ export async function POST(request: NextRequest) {
             input_text: text,
             sentiment_result: result,
             analysis_type: "batch_file",
+            file_name: fileName,
             tokens_used: result.tokens_used,
             processing_time_ms: itemProcessingTime,
             // Add metric fields if available
