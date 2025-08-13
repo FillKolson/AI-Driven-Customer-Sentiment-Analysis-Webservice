@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS public.usage_tracking (
 CREATE TABLE IF NOT EXISTS public.batch_jobs (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    job_id TEXT UNIQUE NOT NULL,
+    job_id UUID UNIQUE NOT NULL,
     status TEXT DEFAULT 'processing' CHECK (status IN ('processing', 'completed', 'failed')),
     total_entries INTEGER DEFAULT 0,
     processed_entries INTEGER DEFAULT 0,

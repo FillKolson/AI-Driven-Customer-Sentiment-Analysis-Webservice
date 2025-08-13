@@ -8,6 +8,7 @@ import { Progress } from "./ui/progress";
 import { Loader2, Upload, FileText, AlertCircle, CheckCircle, XCircle, Info } from "lucide-react";
 import { useToast } from "./ui/use-toast";
 import { parseCSVWithMetrics, validateCSVStructure, ParsedCSVRow } from "../lib/csvParser";
+import { SentimentResult } from "../app/api/sentiment/batch-status/types";
 
 interface FileUploadProps {
   userId: string;
@@ -39,6 +40,7 @@ export default function FileUpload({
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [columnMapping, setColumnMapping] = useState<any>(null);
   const [csvValidation, setCsvValidation] = useState<{ isValid: boolean; errors: string[]; warnings: string[] } | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -217,20 +219,12 @@ export default function FileUpload({
 
   const handleAnalyze = async () => {
     if (!parsedTexts.length) {
-      toast({
-        title: "No Texts to Analyze",
-        description: "Please upload a file first",
-        variant: "destructive",
-      });
+      toast({ title: "No Texts to Analyze", description: "Please upload a file first", variant: "destructive" });
       return;
     }
 
     if (currentUsage + parsedTexts.length > usageLimit) {
-      toast({
-        title: "Usage Limit Exceeded",
-        description: `This analysis would use ${parsedTexts.length} API calls, but you only have ${usageLimit - currentUsage} remaining.`,
-        variant: "destructive",
-      });
+      toast({ title: "Usage Limit Exceeded", description: `This analysis would use ${parsedTexts.length} API calls, but you only have ${usageLimit - currentUsage} remaining.`, variant: "destructive" });
       return;
     }
 
@@ -238,49 +232,50 @@ export default function FileUpload({
     setAnalysisProgress(0);
 
     try {
-      // Prepare texts with metrics for CSV files
-      const texts = parsedTexts.map(item => {
-        if (item.metrics) {
-          return {
-            text: item.text,
-            metrics: item.metrics
-          };
-        }
-        return item.text;
-      });
-      
-      const response = await fetch("/api/sentiment/batch-analyze", {
+      const texts = parsedTexts.map(item => item.metrics ? { text: item.text, metrics: item.metrics } : item.text);
+
+      const initialResponse = await fetch("/api/sentiment/batch-analyze", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ texts }),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Batch analysis failed");
+      if (!initialResponse.ok) {
+        const error = await initialResponse.json();
+        throw new Error(error.error || "Failed to start batch analysis");
       }
 
-      const data = await response.json();
-      setAnalysisProgress(100);
+      const { jobId: newJobId } = await initialResponse.json();
+      setJobId(newJobId);
 
-      toast({
-        title: "Batch Analysis Complete",
-        description: `Successfully analyzed ${data.summary.successful} out of ${data.summary.total_processed} texts`,
-      });
+      const poll = async (jobIdToPoll: string) => {
+        const statusResponse = await fetch(`/api/sentiment/batch-status/${jobIdToPoll}`);
+        if (!statusResponse.ok) {
+          throw new Error('Failed to get job status');
+        }
 
-      onAnalysisComplete(data);
+        const statusData = await statusResponse.json();
+        setAnalysisProgress(statusData.progress || 0);
+
+        if (statusData.status === 'completed') {
+          toast({ title: "Batch Analysis Complete", description: `Successfully analyzed ${statusData.results.filter((r: SentimentResult) => !r.error).length} texts` });
+          onAnalysisComplete({ results: statusData.results, summary: statusData.summary });
+          setIsAnalyzing(false);
+          setJobId(null);
+        } else if (statusData.status === 'failed') {
+          throw new Error(statusData.error || 'Analysis job failed');
+        } else {
+          setTimeout(() => poll(jobIdToPoll), 2000);
+        }
+      };
+
+      setTimeout(() => poll(newJobId), 1000);
 
     } catch (error) {
       console.error("Batch analysis error:", error);
-      toast({
-        title: "Analysis Failed",
-        description: error instanceof Error ? error.message : "An error occurred",
-        variant: "destructive",
-      });
-    } finally {
+      toast({ title: "Analysis Failed", description: error instanceof Error ? error.message : "An error occurred", variant: "destructive" });
       setIsAnalyzing(false);
+      setJobId(null);
     }
   };
 
