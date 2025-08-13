@@ -237,7 +237,10 @@ export default function FileUpload({
       const initialResponse = await fetch("/api/sentiment/batch-analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texts }),
+        body: JSON.stringify({ 
+          texts,
+          file_name: file?.name || 'batch_analysis_' + new Date().toISOString()
+        }),
       });
 
       if (!initialResponse.ok) {

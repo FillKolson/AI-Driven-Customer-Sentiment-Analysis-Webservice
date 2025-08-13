@@ -4,7 +4,8 @@ import { analyzeSentiment } from "../../../../lib/claudeApi";
 import { v4 as uuidv4 } from 'uuid';
 import { SentimentResult } from "../batch-status/types";
 
-async function processBatch(jobId: string, userId: string, texts: any[]) {
+async function processBatch(jobId: string, userId: string, texts: any[], file_name?: string) {
+    console.log('processBatch called with file_name:', file_name); // Debug log
     const supabase = await createClient();
     const results: SentimentResult[] = [];
     let successful = 0;
@@ -45,7 +46,7 @@ async function processBatch(jobId: string, userId: string, texts: any[]) {
             successful++;
 
             // Save to sentiment_analyses table
-            const { error: insertError } = await supabase.from('sentiment_analyses').insert({
+            const insertData: any = {
                 user_id: userId,
                 input_text: text,
                 sentiment_result: result,
@@ -53,7 +54,29 @@ async function processBatch(jobId: string, userId: string, texts: any[]) {
                 tokens_used: result.tokens_used,
                 processing_time_ms: itemProcessingTime,
                 batch_job_id: jobId,
+                ...metrics,
+            };
+
+            // Include file_name if provided
+            if (file_name) {
+                insertData.file_name = file_name;
+                console.log('Setting file_name in insertData:', file_name); // Debug log
+            } else {
+                console.log('No file_name provided for this batch'); // Debug log
+            }
+
+            console.log('Inserting analysis with data:', {
+                file_name: insertData.file_name,
+                has_file_name: !!file_name,
+                insertData: JSON.stringify(insertData, null, 2)
             });
+
+            const { data, error: insertError } = await supabase
+                .from('sentiment_analyses')
+                .insert(insertData)
+                .select();
+
+            console.log('Insert result:', { data, error: insertError });
 
             if (insertError) {
                 console.error(`[Batch Job ${jobId}] Failed to save analysis for item ${i}:`, insertError);
@@ -96,7 +119,9 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { texts } = await request.json();
+        const { texts, file_name } = await request.json();
+
+        console.log('Received request with file_name:', file_name); // Debug log
 
         if (!texts || !Array.isArray(texts) || texts.length === 0) {
             return NextResponse.json({ error: "Texts array is required" }, { status: 400 });
@@ -108,7 +133,8 @@ export async function POST(request: NextRequest) {
             job_id: jobId as any, // Supabase client expects string for UUID
             status: 'processing',
             total_entries: texts.length,
-            processed_entries: 0
+            processed_entries: 0,
+            file_name: file_name,
         });
 
         if (jobError) {
@@ -118,7 +144,8 @@ export async function POST(request: NextRequest) {
 
         // Fire and forget
         (async () => {
-          await processBatch(jobId, user.id, texts);
+          console.log('Starting batch process with file_name:', file_name); // Debug log
+          await processBatch(jobId, user.id, texts, file_name);
         })();
 
         return NextResponse.json({ jobId });
