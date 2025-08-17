@@ -1,49 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "../../../../../supabase/server";
 import { analyzeSentiment } from "../../../../lib/claudeApi";
+import { v4 as uuidv4 } from 'uuid';
+import { SentimentResult } from "../batch-status/types";
 
-interface BatchAnalysisResult {
-  id: string;
-  text: string;
-  sentiment: "positive" | "negative" | "neutral";
-  confidence: number;
-  key_phrases: string[];
-  processing_time_ms: number;
-  tokens_used: number;
-  error?: string;
-  metrics?: {
-    review_id?: string;
-    customer_id?: string;
-    product_id?: string;
-    review_date?: string;
-    gender?: string;
-    age?: number;
-    country?: string;
-    language?: string;
-    category_of_product?: string;
-  };
-}
-
-interface BatchAnalysisResponse {
-  results: BatchAnalysisResult[];
-  summary: {
-    total_processed: number;
-    successful: number;
-    failed: number;
-    total_tokens: number;
-    total_processing_time: number;
-    sentiment_distribution: {
-      positive: number;
-      negative: number;
-      neutral: number;
-    };
-  };
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const startTime = Date.now();
+async function processBatch(jobId: string, userId: string, texts: any[], file_name?: string) {
+    console.log('processBatch called with file_name:', file_name); // Debug log
     const supabase = await createClient();
+    const results: SentimentResult[] = [];
 
     // Check authentication
     const {
@@ -109,81 +73,71 @@ export async function POST(request: NextRequest) {
     let failed = 0;
 
     for (let i = 0; i < texts.length; i++) {
-      const textItem = texts[i];
-      let text: string;
-      let metrics: any = {};
-      
-      // Handle both string and object formats
-      if (typeof textItem === 'string') {
-        text = textItem;
-      } else if (typeof textItem === 'object' && textItem.text) {
-        text = textItem.text;
-        metrics = textItem.metrics || {};
-      } else {
-        results.push({
-          id: `item_${i}`,
-          text: "",
-          sentiment: "neutral",
-          confidence: 0,
-          key_phrases: [],
-          processing_time_ms: 0,
-          tokens_used: 0,
-          error: "Invalid text format",
-        });
-        failed++;
-        continue;
-      }
-      
-      if (!text || text.trim().length === 0) {
-        results.push({
-          id: `item_${i}`,
-          text: text || "",
-          sentiment: "neutral",
-          confidence: 0,
-          key_phrases: [],
-          processing_time_ms: 0,
-          tokens_used: 0,
-          error: "Empty or invalid text",
-        });
-        failed++;
-        continue;
-      }
+        const textItem = texts[i];
+        let text: string;
+        let metrics: any = {};
 
-      if (text.length > 10000) {
-        results.push({
-          id: `item_${i}`,
-          text: text,
-          sentiment: "neutral",
-          confidence: 0,
-          key_phrases: [],
-          processing_time_ms: 0,
-          tokens_used: 0,
-          error: "Text too long (max 10,000 characters)",
-        });
-        failed++;
-        continue;
-      }
+        if (typeof textItem === 'string') {
+            text = textItem;
+        } else if (typeof textItem === 'object' && textItem.text) {
+            text = textItem.text;
+            metrics = textItem.metrics || {};
+        } else {
+            results.push({ id: `item_${i}`, text: "", sentiment: "neutral", confidence: 0, key_phrases: [], processing_time_ms: 0, tokens_used: 0, error: "Invalid text format" });
+            failed++;
+            continue;
+        }
 
-      try {
-        const itemStartTime = Date.now();
-        const result = await analyzeSentiment({ userId: user.id, text });
-        const itemProcessingTime = Date.now() - itemStartTime;
+        try {
+            const itemStartTime = Date.now();
+            const result = await analyzeSentiment({ userId, text });
+            const itemProcessingTime = Date.now() - itemStartTime;
 
-        results.push({
-          id: `item_${i}`,
-          text: text,
-          sentiment: result.sentiment,
-          confidence: result.confidence,
-          key_phrases: result.key_phrases,
-          processing_time_ms: itemProcessingTime,
-          tokens_used: result.tokens_used,
-          metrics: Object.keys(metrics).length > 0 ? metrics : undefined,
-        });
+            results.push({
+                id: `item_${i}`,
+                text: text,
+                sentiment: result.sentiment,
+                confidence: result.confidence,
+                key_phrases: result.key_phrases,
+                processing_time_ms: itemProcessingTime,
+                tokens_used: result.tokens_used,
+                metrics: Object.keys(metrics).length > 0 ? metrics : undefined,
+            });
 
-        totalTokens += result.tokens_used;
-        totalProcessingTime += itemProcessingTime;
-        successful++;
+            successful++;
 
+            // Save to sentiment_analyses table
+            const insertData: any = {
+                user_id: userId,
+                input_text: text,
+                sentiment_result: result,
+                analysis_type: 'batch_text',
+                tokens_used: result.tokens_used,
+                processing_time_ms: itemProcessingTime,
+                batch_job_id: jobId,
+                ...metrics,
+            };
+
+            // Include file_name if provided
+            if (file_name) {
+                insertData.file_name = file_name;
+                console.log('Setting file_name in insertData:', file_name); // Debug log
+            } else {
+                console.log('No file_name provided for this batch'); // Debug log
+            }
+
+            console.log('Inserting analysis with data:', {
+                file_name: insertData.file_name,
+                has_file_name: !!file_name,
+                insertData: JSON.stringify(insertData, null, 2)
+            });
+
+            const { data, error: insertError } = await supabase
+                .from('sentiment_analyses')
+                .insert(insertData)
+                .select();
+
+            console.log('Insert result:', { data, error: insertError });
         // Store individual analysis in database
         const { error: insertError } = await supabase
           .from("sentiment_analyses")
@@ -207,51 +161,80 @@ export async function POST(request: NextRequest) {
             ...(metrics.category_of_product && { category_of_product: metrics.category_of_product }),
           });
 
-        if (insertError) {
-          console.error("Error storing batch analysis:", insertError);
+            if (insertError) {
+                console.error(`[Batch Job ${jobId}] Failed to save analysis for item ${i}:`, insertError);
+                // Optional: Decide if you want to mark this item as failed in the batch results
+            }
+
+        } catch (error: any) {
+            results.push({ id: `item_${i}`, text: text, sentiment: "neutral", confidence: 0, key_phrases: [], processing_time_ms: 0, tokens_used: 0, error: error.message || "Analysis failed" });
+            failed++;
         }
 
-      } catch (error: any) {
-        console.error(`Error analyzing text ${i}:`, error);
-        results.push({
-          id: `item_${i}`,
-          text: text,
-          sentiment: "neutral",
-          confidence: 0,
-          key_phrases: [],
-          processing_time_ms: 0,
-          tokens_used: 0,
-          error: error.message || "Analysis failed",
-        });
-        failed++;
-      }
+        await supabase.from('batch_jobs').update({ processed_entries: i + 1, results }).eq('job_id', jobId);
     }
 
-    // Calculate sentiment distribution
-    const sentimentDistribution = {
-      positive: results.filter(r => r.sentiment === "positive" && !r.error).length,
-      negative: results.filter(r => r.sentiment === "negative" && !r.error).length,
-      neutral: results.filter(r => r.sentiment === "neutral" && !r.error).length,
+    const summary = {
+        total_processed: results.length,
+        successful: results.filter((r: SentimentResult) => !r.error).length,
+        failed: results.filter((r: SentimentResult) => r.error).length,
+        total_tokens: results.reduce((acc: number, r: SentimentResult) => acc + (r.tokens_used || 0), 0),
+        total_processing_time: results.reduce((acc: number, r: SentimentResult) => acc + (r.processing_time_ms || 0), 0),
+        sentiment_distribution: {
+            positive: results.filter((r: SentimentResult) => r.sentiment === 'positive').length,
+            negative: results.filter((r: SentimentResult) => r.sentiment === 'negative').length,
+            neutral: results.filter((r: SentimentResult) => r.sentiment === 'neutral').length,
+        },
     };
 
-    const response: BatchAnalysisResponse = {
-      results,
-      summary: {
-        total_processed: texts.length,
-        successful,
-        failed,
-        total_tokens: totalTokens,
-        total_processing_time: Date.now() - startTime,
-        sentiment_distribution: sentimentDistribution,
-      },
-    };
+    await supabase
+        .from('batch_jobs')
+        .update({ status: 'completed', results, summary })
+        .eq('job_id', jobId);
+}
 
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error("Batch sentiment analysis error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
+export async function POST(request: NextRequest) {
+    try {
+        const supabase = await createClient();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { texts, file_name } = await request.json();
+
+        console.log('Received request with file_name:', file_name); // Debug log
+
+        if (!texts || !Array.isArray(texts) || texts.length === 0) {
+            return NextResponse.json({ error: "Texts array is required" }, { status: 400 });
+        }
+
+        const jobId = uuidv4();
+        const { error: jobError } = await supabase.from('batch_jobs').insert({
+            user_id: user.id,
+            job_id: jobId as any, // Supabase client expects string for UUID
+            status: 'processing',
+            total_entries: texts.length,
+            processed_entries: 0,
+            file_name: file_name,
+        });
+
+        if (jobError) {
+            console.error("Error creating batch job:", jobError);
+            return NextResponse.json({ error: "Failed to create batch job" }, { status: 500 });
+        }
+
+        // Fire and forget
+        (async () => {
+          console.log('Starting batch process with file_name:', file_name); // Debug log
+          await processBatch(jobId, user.id, texts, file_name);
+        })();
+
+        return NextResponse.json({ jobId });
+
+    } catch (error) {
+        console.error("Batch sentiment analysis error:", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
 } 
