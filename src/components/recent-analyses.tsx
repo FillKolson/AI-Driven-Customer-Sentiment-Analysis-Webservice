@@ -66,7 +66,8 @@ export default function RecentAnalyses({ userId }: RecentAnalysesProps) {
     }
   };
 
-  const truncateText = (text: string, maxLength: number = 100) => {
+  const truncateText = (text: string | null | undefined, maxLength: number = 100) => {
+    if (!text) return "";
     return text.length > maxLength
       ? text.substring(0, maxLength) + "..."
       : text;
@@ -135,17 +136,25 @@ export default function RecentAnalyses({ userId }: RecentAnalysesProps) {
                       {truncateText(analysis.input_text)}
                     </p>
                     <div className="flex items-center gap-2 mb-2">
-                      {getSentimentIcon(analysis.sentiment_result.sentiment)}
-                      <Badge
-                        variant="outline"
-                        className={`${getSentimentColor(analysis.sentiment_result.sentiment)} text-xs`}
-                      >
-                        {analysis.sentiment_result.sentiment}
-                      </Badge>
-                      <span className="text-xs text-gray-500">
-                        {Math.round(analysis.sentiment_result.confidence * 100)}
-                        %
-                      </span>
+                      {analysis.sentiment_result ? (
+                        <>
+                          {getSentimentIcon(analysis.sentiment_result.sentiment)}
+                          <Badge
+                            variant="outline"
+                            className={`${getSentimentColor(analysis.sentiment_result.sentiment)} text-xs`}
+                          >
+                            {analysis.sentiment_result.sentiment}
+                          </Badge>
+                          <span className="text-xs text-gray-500">
+                            {Math.round(analysis.sentiment_result.confidence * 100)}
+                            %
+                          </span>
+                        </>
+                      ) : (
+                        <Badge variant="outline" className="text-xs bg-gray-100 text-gray-500">
+                          Processing...
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-gray-500">
                       {formatDate(analysis.created_at)}

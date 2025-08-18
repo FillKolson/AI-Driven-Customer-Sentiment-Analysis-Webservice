@@ -117,24 +117,7 @@ export default function HistoryPage() {
 
   const fetchAllAnalyses = async () => {
     try {
-      const params = new URLSearchParams({
-        sort_by: sortBy,
-        sort_order: sortOrder,
-      });
-
-      if (sentimentFilter !== "all") {
-        params.append("sentiment", sentimentFilter);
-      }
-      
-      if (dateFrom) {
-        params.append("date_from", dateFrom);
-      }
-      
-      if (dateTo) {
-        params.append("date_to", dateTo);
-      }
-
-      const response = await fetch(`/api/sentiment/history/stats?${params}`);
+      const response = await fetch('/api/analytics/dashboard');
       if (response.ok) {
         const data = await response.json();
         setAllAnalyses(data.analyses || []);
@@ -147,7 +130,7 @@ export default function HistoryPage() {
   useEffect(() => {
     fetchAnalyses(currentPage);
     fetchAllAnalyses();
-  }, [currentPage, sentimentFilter, sortBy, sortOrder, dateFrom, dateTo]);
+  }, [currentPage]);
 
   // Auto-refresh data every 30 seconds to catch new analyses
   useEffect(() => {
@@ -156,7 +139,7 @@ export default function HistoryPage() {
     }, 30000); // 30 seconds
 
     return () => clearInterval(interval);
-  }, [sentimentFilter, sortBy, sortOrder, dateFrom, dateTo]);
+  }, []);
 
   const getSentimentIcon = (sentiment: string) => {
     switch (sentiment) {
@@ -180,7 +163,8 @@ export default function HistoryPage() {
     }
   };
 
-  const truncateText = (text: string, maxLength: number = 100) => {
+  const truncateText = (text: string | null | undefined, maxLength: number = 100) => {
+    if (!text) return "";
     return text.length > maxLength
       ? text.substring(0, maxLength) + "..."
       : text;
@@ -488,45 +472,65 @@ export default function HistoryPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              {getSentimentIcon(
-                                analysis.sentiment_result.sentiment,
+                              {analysis.sentiment_result ? (
+                                <>
+                                  {getSentimentIcon(
+                                    analysis.sentiment_result.sentiment,
+                                  )}
+                                  <Badge
+                                    variant="outline"
+                                    className={`${getSentimentColor(analysis.sentiment_result.sentiment)} text-xs`}
+                                  >
+                                    {analysis.sentiment_result.sentiment}
+                                  </Badge>
+                                </>
+                              ) : (
+                                <Badge variant="outline" className="text-xs bg-gray-100 text-gray-500">
+                                  Processing...
+                                </Badge>
                               )}
-                              <Badge
-                                variant="outline"
-                                className={`${getSentimentColor(analysis.sentiment_result.sentiment)} text-xs`}
-                              >
-                                {analysis.sentiment_result.sentiment}
-                              </Badge>
                             </div>
                           </TableCell>
                           <TableCell>
                             <span className="text-sm">
-                              {Math.round(
-                                analysis.sentiment_result.confidence * 100,
+                              {analysis.sentiment_result ? (
+                                <>
+                                  {Math.round(
+                                    analysis.sentiment_result.confidence * 100,
+                                  )}
+                                  %
+                                </>
+                              ) : (
+                                <span className="text-gray-500">-</span>
                               )}
-                              %
                             </span>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1 max-w-xs">
-                              {analysis.sentiment_result.key_phrases
-                                .slice(0, 3)
-                                .map((phrase, index) => (
-                                  <Badge
-                                    key={index}
-                                    variant="secondary"
-                                    className="text-xs"
-                                  >
-                                    {phrase}
-                                  </Badge>
-                                ))}
-                              {analysis.sentiment_result.key_phrases.length >
-                                3 && (
-                                <span className="text-xs text-gray-500">
-                                  +
+                              {analysis.sentiment_result?.key_phrases ? (
+                                <>
                                   {analysis.sentiment_result.key_phrases
-                                    .length - 3}
-                                </span>
+                                    .slice(0, 3)
+                                    .map((phrase, index) => (
+                                      <Badge
+                                        key={index}
+                                        variant="secondary"
+                                        className="text-xs"
+                                      >
+                                        {phrase}
+                                      </Badge>
+                                    ))}
+                                  {analysis.sentiment_result.key_phrases.length >
+                                    3 && (
+                                    <span className="text-xs text-gray-500">
+                                      +
+                                      {analysis.sentiment_result.key_phrases
+                                        .length - 3}
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-xs text-gray-500">No key phrases</span>
                               )}
                             </div>
                           </TableCell>
@@ -560,25 +564,33 @@ export default function HistoryPage() {
 
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            {getSentimentIcon(
-                              analysis.sentiment_result.sentiment,
+                            {analysis.sentiment_result ? (
+                              <>
+                                {getSentimentIcon(
+                                  analysis.sentiment_result.sentiment,
+                                )}
+                                <Badge
+                                  variant="outline"
+                                  className={`${getSentimentColor(analysis.sentiment_result.sentiment)} text-xs`}
+                                >
+                                  {analysis.sentiment_result.sentiment}
+                                </Badge>
+                                <span className="text-xs text-gray-500">
+                                  {Math.round(
+                                    analysis.sentiment_result.confidence * 100,
+                                  )}
+                                  %
+                                </span>
+                              </>
+                            ) : (
+                              <Badge variant="outline" className="text-xs bg-gray-100 text-gray-500">
+                                Processing...
+                              </Badge>
                             )}
-                            <Badge
-                              variant="outline"
-                              className={`${getSentimentColor(analysis.sentiment_result.sentiment)} text-xs`}
-                            >
-                              {analysis.sentiment_result.sentiment}
-                            </Badge>
-                            <span className="text-xs text-gray-500">
-                              {Math.round(
-                                analysis.sentiment_result.confidence * 100,
-                              )}
-                              %
-                            </span>
                           </div>
                         </div>
 
-                        {analysis.sentiment_result.key_phrases.length > 0 && (
+                        {analysis.sentiment_result?.key_phrases?.length > 0 && (
                           <div className="flex flex-wrap gap-1">
                             {analysis.sentiment_result.key_phrases
                               .slice(0, 4)
