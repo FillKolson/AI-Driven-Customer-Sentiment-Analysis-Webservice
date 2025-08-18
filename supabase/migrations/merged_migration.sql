@@ -1,4 +1,125 @@
 -- =============================================
+-- SUPERMARKET TABLES
+-- =============================================
+
+-- Supermarket branches table
+CREATE TABLE IF NOT EXISTS public.supermarket_branches (
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    supermarket_id TEXT NOT NULL,
+    state TEXT NOT NULL,
+    advertisement_spend DECIMAL(12, 2) DEFAULT 0,
+    promotion_spend DECIMAL(12, 2) DEFAULT 0,
+    administration_spend DECIMAL(12, 2) DEFAULT 0,
+    profit DECIMAL(12, 2) DEFAULT 0,
+    PRIMARY KEY (user_id, supermarket_id)
+);
+
+-- Supermarket customer members table
+CREATE TABLE IF NOT EXISTS public.supermarket_customer_members (
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    customer_id TEXT NOT NULL,
+    gender TEXT,
+    age INTEGER,
+    annual_income DECIMAL(12, 2),
+    spending_score INTEGER,
+    total_purchases INTEGER DEFAULT 0,
+    average_order_value DECIMAL(12, 2) DEFAULT 0,
+    purchase_frequency DECIMAL(10, 2) DEFAULT 0,
+    last_purchase_date TIMESTAMP WITH TIME ZONE,
+    PRIMARY KEY (user_id, customer_id)
+);
+
+-- Products table
+CREATE TABLE IF NOT EXISTS public.products (
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    product_id TEXT NOT NULL,
+    product_name TEXT NOT NULL,
+    product_category TEXT,
+    price DECIMAL(10, 2),
+    attributes JSONB,
+    params JSONB,
+    PRIMARY KEY (user_id, product_id)
+);
+
+-- Market basket optimization table
+CREATE TABLE IF NOT EXISTS public.market_basket_optimisation (
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    basket_id TEXT NOT NULL,
+    product1 TEXT,
+    product2 TEXT,
+    product3 TEXT,
+    product4 TEXT,
+    product5 TEXT,
+    product6 TEXT,
+    product7 TEXT,
+    product8 TEXT,
+    product9 TEXT,
+    PRIMARY KEY (user_id, basket_id),
+    FOREIGN KEY (user_id, product1) REFERENCES public.products(user_id, product_id),
+    FOREIGN KEY (user_id, product2) REFERENCES public.products(user_id, product_id),
+    FOREIGN KEY (user_id, product3) REFERENCES public.products(user_id, product_id),
+    FOREIGN KEY (user_id, product4) REFERENCES public.products(user_id, product_id),
+    FOREIGN KEY (user_id, product5) REFERENCES public.products(user_id, product_id),
+    FOREIGN KEY (user_id, product6) REFERENCES public.products(user_id, product_id),
+    FOREIGN KEY (user_id, product7) REFERENCES public.products(user_id, product_id),
+    FOREIGN KEY (user_id, product8) REFERENCES public.products(user_id, product_id),
+    FOREIGN KEY (user_id, product9) REFERENCES public.products(user_id, product_id)
+);
+
+-- Sentiment analysis table
+CREATE TABLE IF NOT EXISTS public.sentiment_analyses (
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    sentiment_id TEXT NOT NULL,
+    customer_id TEXT NOT NULL,
+    supermarket_id TEXT NOT NULL,
+    basket_id TEXT,
+    sentiment_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    sentiment_score DECIMAL(3, 2) NOT NULL CHECK (sentiment_score >= -1 AND sentiment_score <= 1),
+    confidence_level DECIMAL(3, 2) NOT NULL CHECK (confidence_level >= 0 AND confidence_level <= 1),
+    sentiment_category TEXT NOT NULL CHECK (sentiment_category IN ('positive', 'neutral', 'negative')),
+    input_text TEXT,
+    sentiment_result JSONB,
+    analysis_type TEXT DEFAULT 'single_text' CHECK (analysis_type IN ('single_text', 'batch_file', 'batch_text')),
+    file_name TEXT,
+    tokens_used INTEGER DEFAULT 0,
+    processing_time_ms INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    batch_job_id UUID,
+    PRIMARY KEY (user_id, sentiment_id),
+    FOREIGN KEY (user_id, customer_id) REFERENCES public.supermarket_customer_members(user_id, customer_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id, supermarket_id) REFERENCES public.supermarket_branches(user_id, supermarket_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id, basket_id) REFERENCES public.market_basket_optimisation(user_id, basket_id) ON DELETE SET NULL
+);
+
+
+-- Ads CTR optimization table
+CREATE TABLE IF NOT EXISTS public.ads_ctr_optimisation (
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    supermarket_id TEXT NOT NULL,
+    ad1 TEXT,
+    ad2 TEXT,
+    ad3 TEXT,
+    ad4 TEXT,
+    ad5 TEXT,
+    ad6 TEXT,
+    ad7 TEXT,
+    ad8 TEXT,
+    ad9 TEXT,
+    ad10 TEXT,
+    PRIMARY KEY (user_id, supermarket_id),
+    FOREIGN KEY (user_id, supermarket_id) REFERENCES public.supermarket_branches(user_id, supermarket_id) ON DELETE CASCADE
+);
+
+
+-- Create indexes for better query performance
+CREATE INDEX IF NOT EXISTS idx_supermarket_branches_state ON public.supermarket_branches(state);
+CREATE INDEX IF NOT EXISTS idx_customer_members_gender ON public.supermarket_customer_members(gender);
+CREATE INDEX IF NOT EXISTS idx_customer_members_age ON public.supermarket_customer_members(age);
+CREATE INDEX IF NOT EXISTS idx_products_category ON public.products(product_category);
+CREATE INDEX IF NOT EXISTS idx_sentiment_analyses_date ON public.sentiment_analyses(sentiment_date);
+CREATE INDEX IF NOT EXISTS idx_sentiment_analyses_score ON public.sentiment_analyses(sentiment_score);
+
+-- =============================================
 -- MIGRATION 1: Initial Database Setup
 -- =============================================
 
@@ -17,9 +138,9 @@ CREATE TABLE IF NOT EXISTS public.users (
     name text,
     full_name text,
     bio text,
-    subscription_status TEXT DEFAULT 'free',
+    subscription_status TEXT DEFAULT 'NULL',
     api_usage_current_month INTEGER DEFAULT 0,
-    api_limit_per_month INTEGER DEFAULT 100
+    api_limit_per_month INTEGER DEFAULT 0
 );
 
 -- Subscriptions table
@@ -82,53 +203,6 @@ CREATE TABLE IF NOT EXISTS public.user_preferences (
     UNIQUE(user_id)
 );
 
--- Sentiment analyses table
-CREATE TABLE IF NOT EXISTS public.sentiment_analyses (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    input_text TEXT NOT NULL,
-    sentiment_result JSONB NOT NULL,
-    analysis_type TEXT DEFAULT 'single_text' CHECK (analysis_type IN ('single_text', 'batch_file', 'batch_text')),
-    file_name TEXT,
-    tokens_used INTEGER DEFAULT 0,
-    processing_time_ms INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    batch_job_id UUID,
-    
-    -- Metric data fields
-    review_id TEXT,
-    customer_id TEXT,
-    gender TEXT,
-    age INTEGER,
-    
-    -- Customer metrics
-    genre TEXT,
-    annual_income DECIMAL(12, 2),
-    spending_score INTEGER,
-    state TEXT,
-    purchase_frequency INTEGER,
-    total_purchases INTEGER,
-    last_purchase_date TIMESTAMP WITH TIME ZONE,
-    
-    -- Business metrics
-    profit DECIMAL(12, 2),
-    administration_spend DECIMAL(12, 2),
-    advertisement_spend DECIMAL(12, 2),
-    promotion_spend DECIMAL(12, 2),
-    average_order_value DECIMAL(12, 2),
-    product_name TEXT,
-    supermarket_id TEXT,
-    
-    -- Sentiment metrics
-    sentiment_id TEXT,
-    sentiment_score DECIMAL(3, 2) 
-        CHECK (sentiment_score IS NULL OR (sentiment_score >= 0 AND sentiment_score <= 1)),
-    sentiment_category TEXT 
-        CHECK (sentiment_category IS NULL OR sentiment_category IN ('Positive', 'Neutral', 'Negative')),
-    sentiment_date TIMESTAMP WITH TIME ZONE,
-    confidence_level DECIMAL(3, 2)
-);
-
 -- Usage tracking table
 CREATE TABLE IF NOT EXISTS public.usage_tracking (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -171,12 +245,11 @@ CREATE INDEX IF NOT EXISTS user_preferences_user_id_idx ON public.user_preferenc
 CREATE INDEX IF NOT EXISTS sentiment_analyses_user_id_idx ON public.sentiment_analyses(user_id);
 CREATE INDEX IF NOT EXISTS sentiment_analyses_created_at_idx ON public.sentiment_analyses(created_at DESC);
 CREATE INDEX IF NOT EXISTS sentiment_analyses_batch_job_id_idx ON public.sentiment_analyses(batch_job_id);
-CREATE INDEX IF NOT EXISTS sentiment_analyses_review_id_idx ON public.sentiment_analyses(review_id);
 CREATE INDEX IF NOT EXISTS sentiment_analyses_customer_id_idx ON public.sentiment_analyses(customer_id);
 CREATE INDEX IF NOT EXISTS sentiment_analyses_sentiment_score_idx ON public.sentiment_analyses(sentiment_score);
 CREATE INDEX IF NOT EXISTS sentiment_analyses_sentiment_category_idx ON public.sentiment_analyses(sentiment_category);
 CREATE INDEX IF NOT EXISTS sentiment_analyses_sentiment_date_idx ON public.sentiment_analyses(sentiment_date);
-CREATE INDEX IF NOT EXISTS sentiment_analyses_product_name_idx ON public.sentiment_analyses(product_name);
+
 CREATE INDEX IF NOT EXISTS sentiment_analyses_supermarket_id_idx ON public.sentiment_analyses(supermarket_id);
 
 -- Indexes for usage_tracking table
@@ -475,8 +548,8 @@ CREATE TRIGGER on_auth_user_updated
   AFTER UPDATE ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_user_update();
 
-DROP TRIGGER IF EXISTS on_sentiment_analysis_created ON public.sentiment_analyses;
-CREATE TRIGGER on_sentiment_analysis_created
+DROP TRIGGER IF EXISTS on_sentiment_analyses_created ON public.sentiment_analyses;
+CREATE TRIGGER on_sentiment_analyses_created
     AFTER INSERT ON public.sentiment_analyses
     FOR EACH ROW EXECUTE FUNCTION update_usage_tracking();
 
@@ -491,39 +564,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS batch_jobs;
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS user_preferences;
 
 -- =============================================
--- MIGRATION 6: Add Comments
--- =============================================
-
--- Comments for user_preferences columns
-COMMENT ON COLUMN public.user_preferences.usage_notifications IS 'Whether the user wants to receive usage limit notifications';
-
--- Comments for sentiment_analyses columns
-COMMENT ON COLUMN public.sentiment_analyses.review_id IS 'Unique identifier for the review';
-COMMENT ON COLUMN public.sentiment_analyses.customer_id IS 'Unique identifier for the customer';
-COMMENT ON COLUMN public.sentiment_analyses.gender IS 'Customer gender information';
-COMMENT ON COLUMN public.sentiment_analyses.age IS 'Customer age information';
-COMMENT ON COLUMN public.sentiment_analyses.genre IS 'Customer gender';
-COMMENT ON COLUMN public.sentiment_analyses.annual_income IS 'Customer annual income';
-COMMENT ON COLUMN public.sentiment_analyses.spending_score IS 'Customer spending score';
-COMMENT ON COLUMN public.sentiment_analyses.state IS 'Customer state/location';
-COMMENT ON COLUMN public.sentiment_analyses.purchase_frequency IS 'Customer purchase frequency';
-COMMENT ON COLUMN public.sentiment_analyses.total_purchases IS 'Total number of purchases by customer';
-COMMENT ON COLUMN public.sentiment_analyses.last_purchase_date IS 'Date of last purchase';
-COMMENT ON COLUMN public.sentiment_analyses.profit IS 'Profit amount';
-COMMENT ON COLUMN public.sentiment_analyses.administration_spend IS 'Administration spending amount';
-COMMENT ON COLUMN public.sentiment_analyses.advertisement_spend IS 'Advertisement spending amount';
-COMMENT ON COLUMN public.sentiment_analyses.promotion_spend IS 'Promotion spending amount';
-COMMENT ON COLUMN public.sentiment_analyses.average_order_value IS 'Average order value';
-COMMENT ON COLUMN public.sentiment_analyses.product_name IS 'Name of the product';
-COMMENT ON COLUMN public.sentiment_analyses.supermarket_id IS 'Supermarket identifier';
-COMMENT ON COLUMN public.sentiment_analyses.sentiment_id IS 'Unique identifier for the sentiment analysis';
-COMMENT ON COLUMN public.sentiment_analyses.sentiment_score IS 'Sentiment score between 0 and 1';
-COMMENT ON COLUMN public.sentiment_analyses.sentiment_category IS 'Categorized sentiment (Positive, Neutral, Negative)';
-COMMENT ON COLUMN public.sentiment_analyses.sentiment_date IS 'Date when sentiment was recorded';
-COMMENT ON COLUMN public.sentiment_analyses.confidence_level IS 'Confidence level of the sentiment analysis';
-
--- =============================================
--- MIGRATION 7: Foreign Key Constraints
+-- MIGRATION 6: Foreign Key Constraints
 -- =============================================
 
 -- Add foreign key from sentiment_analyses to batch_jobs using job_id
