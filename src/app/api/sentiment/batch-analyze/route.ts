@@ -8,67 +8,6 @@ async function processBatch(jobId: string, userId: string, texts: any[], file_na
     console.log('processBatch called with file_name:', file_name); // Debug log
     const supabase = await createClient();
     const results: SentimentResult[] = [];
-
-    // Check authentication
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Get request body
-    const { texts, fileType = "csv", fileName } = await request.json();
-
-    if (!texts || !Array.isArray(texts) || texts.length === 0) {
-      return NextResponse.json({ error: "Texts array is required" }, { status: 400 });
-    }
-
-    // Check if texts include metrics (for CSV files)
-    const hasMetrics = texts.some((text: any) => typeof text === 'object' && text.text && text.metrics);
-
-    if (texts.length > 10000) {
-      return NextResponse.json(
-        { error: "Maximum 10000 texts per batch analysis" },
-        { status: 400 },
-      );
-    }
-
-    // Check user's usage limits
-    const { data: userData } = await supabase
-      .from("users")
-      .select(
-        "api_usage_current_month, api_limit_per_month, subscription_status",
-      )
-      .eq("id", user.id)
-      .single();
-
-    if (userData && userData.subscription_status === 'none') {
-      return NextResponse.json(
-        { error: 'API access is unavailable without a subscription.' },
-        { status: 403 },
-      );
-    }
-
-    // Check if batch analysis would exceed limits
-    const requiredCalls = texts.length;
-    if (
-      userData &&
-      userData.api_usage_current_month + requiredCalls > userData.api_limit_per_month
-    ) {
-      return NextResponse.json(
-        {
-          error: `Batch analysis would exceed your monthly limit. You have ${userData.api_limit_per_month - userData.api_usage_current_month} calls remaining, but need ${requiredCalls} calls.`,
-        },
-        { status: 429 },
-      );
-    }
-
-    // Process each text
-    const results: BatchAnalysisResult[] = [];
-    let totalTokens = 0;
-    let totalProcessingTime = 0;
     let successful = 0;
     let failed = 0;
 
@@ -138,28 +77,6 @@ async function processBatch(jobId: string, userId: string, texts: any[], file_na
                 .select();
 
             console.log('Insert result:', { data, error: insertError });
-        // Store individual analysis in database
-        const { error: insertError } = await supabase
-          .from("sentiment_analyses")
-          .insert({
-            user_id: user.id,
-            input_text: text,
-            sentiment_result: result,
-            analysis_type: "batch_file",
-            file_name: fileName,
-            tokens_used: result.tokens_used,
-            processing_time_ms: itemProcessingTime,
-            // Add metric fields if available
-            ...(metrics.review_id && { review_id: metrics.review_id }),
-            ...(metrics.customer_id && { customer_id: metrics.customer_id }),
-            ...(metrics.product_id && { product_id: metrics.product_id }),
-            ...(metrics.review_date && { review_date: metrics.review_date }),
-            ...(metrics.gender && { gender: metrics.gender }),
-            ...(metrics.age && { age: metrics.age }),
-            ...(metrics.country && { country: metrics.country }),
-            ...(metrics.language && { language: metrics.language }),
-            ...(metrics.category_of_product && { category_of_product: metrics.category_of_product }),
-          });
 
             if (insertError) {
                 console.error(`[Batch Job ${jobId}] Failed to save analysis for item ${i}:`, insertError);
