@@ -36,6 +36,7 @@ import DashboardNavbar from "@/components/dashboard-navbar";
 import { useToast } from "@/components/ui/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import HistoryVisualizations from "@/components/history-visualizations";
+import KeyMetricsChart from "@/components/key-metrics-chart";
 
 interface Analysis {
   id: string;
@@ -286,6 +287,9 @@ export default function HistoryPage() {
             </p>
           </div>
         </div>
+
+        {/* Key Metrics Chart - Positive Sentiment Analysis */}
+        <KeyMetricsChart analyses={allAnalyses} loading={loading} />
 
         {/* Data Visualizations */}
         <HistoryVisualizations analyses={allAnalyses} loading={loading} />
