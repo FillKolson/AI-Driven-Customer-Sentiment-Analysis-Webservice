@@ -41,6 +41,7 @@ import {
   ScatterChart as ScatterChartIcon
 } from "lucide-react";
 import SentimentProfitChart from "./sentiment-profit-chart";
+import SentimentPromotionChart from "./sentiment-promotion-chart";
 
 interface Analysis {
   id: string;
@@ -509,40 +510,8 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
       {/* Chart 1: New Sentiment vs Profit Chart with Real Data */}
       <SentimentProfitChart loading={loading} />
 
-      {/* Chart 2: Sentiment vs Promotion Spend */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <DollarSign className="w-5 h-5" />
-            Average Sentiment Score vs Promotion Spend
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData.sentimentPromotionData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="promotionSpend" />
-                <YAxis />
-                <Tooltip content={<CustomTooltip />} />
-                <Line 
-                  type="monotone" 
-                  dataKey="sentimentScore" 
-                  stroke="#f59e0b" 
-                  strokeWidth={2}
-                  name="Sentiment Score"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-700">
-              {generateSentimentPromotionReview(chartData.sentimentPromotionData)}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Chart 2: New Sentiment vs Promotion Spend Chart with Real Data */}
+      <SentimentPromotionChart loading={loading} />
 
       {/* Chart 3: Sentiment vs Purchase Frequency */}
       <Card>
