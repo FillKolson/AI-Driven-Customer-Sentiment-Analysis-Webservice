@@ -43,6 +43,7 @@ import {
 import SentimentProfitChart from "./sentiment-profit-chart";
 import SentimentPromotionChart from "./sentiment-promotion-chart";
 import SentimentFrequencyChart from "./sentiment-frequency-chart";
+import SentimentCategoriesChart from "./sentiment-categories-chart";
 
 interface Analysis {
   id: string;
@@ -517,44 +518,8 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
       {/* Chart 3: New Sentiment vs Purchase Frequency Chart with Real Data */}
       <SentimentFrequencyChart loading={loading} />
 
-      {/* Chart 4: Sentiment Categories */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <PieChartIcon className="w-5 h-5" />
-            Sentiment Categories Distribution
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={chartData.sentimentCategories}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {chartData.sentimentCategories.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-700">
-              {generateSentimentCategoriesReview(chartData.sentimentCategories)}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Chart 4: New Sentiment Categories Distribution Chart with Real Data */}
+      <SentimentCategoriesChart loading={loading} />
 
       {/* Additional charts continue with the same pattern... */}
       {/* I'm including just a few more for brevity, but the pattern continues for all remaining charts */}
