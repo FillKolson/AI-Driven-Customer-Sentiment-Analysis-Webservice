@@ -15,6 +15,184 @@ interface IncomeSentimentResponse {
   chartData: IncomeSentimentData[];
 }
 
+// Dynamic AI Review Component for Income Sentiment
+const DynamicIncomeSentimentReview = ({ data }: { data: IncomeSentimentData[] }) => {
+  const generateIncomeInsights = () => {
+    if (!data || data.length === 0) {
+      return {
+        totalCustomers: 0,
+        avgSentiment: 0,
+        bestIncomeGroup: { incomeGroup: '', averageScore: 0, count: 0 },
+        worstIncomeGroup: { incomeGroup: '', averageScore: 0, count: 0 },
+        incomeGroups: 0,
+        sentimentRange: 0,
+        incomeSentimentCorrelation: 0
+      };
+    }
+
+    const totalCustomers = data.reduce((sum, item) => sum + item.count, 0);
+    const weightedSentiment = data.reduce((sum, item) => sum + (item.averageScore * item.count), 0) / totalCustomers;
+    
+    const bestIncomeGroup = data.reduce((best, current) => 
+      current.averageScore > best.averageScore ? current : best
+    );
+    
+    const worstIncomeGroup = data.reduce((worst, current) => 
+      current.averageScore < worst.averageScore ? current : worst
+    );
+
+    const sentimentRange = bestIncomeGroup.averageScore - worstIncomeGroup.averageScore;
+
+    // Calculate correlation between income (as number) and sentiment
+    const incomeValues = data.map(item => parseFloat(item.incomeGroup.replace(/[^0-9.]/g, '')) || 0);
+    const sentimentValues = data.map(item => item.averageScore);
+    const correlation = calculateCorrelation(incomeValues, sentimentValues);
+
+    return {
+      totalCustomers,
+      avgSentiment: weightedSentiment,
+      bestIncomeGroup,
+      worstIncomeGroup,
+      incomeGroups: data.length,
+      sentimentRange,
+      incomeSentimentCorrelation: correlation
+    };
+  };
+
+  const calculateCorrelation = (x: number[], y: number[]): number => {
+    const n = x.length;
+    if (n === 0) return 0;
+    
+    const sumX = x.reduce((a, b) => a + b, 0);
+    const sumY = y.reduce((a, b) => a + b, 0);
+    const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+    const sumXX = x.reduce((sum, xi) => sum + xi * xi, 0);
+    const sumYY = y.reduce((sum, yi) => sum + yi * yi, 0);
+    
+    const numerator = n * sumXY - sumX * sumY;
+    const denominator = Math.sqrt((n * sumXX - sumX * sumX) * (n * sumYY - sumY * sumY));
+    
+    return denominator === 0 ? 0 : numerator / denominator;
+  };
+
+  const generateDynamicReview = () => {
+    const insights = generateIncomeInsights();
+    
+    // Performance classification
+    let performanceLevel = "needs improvement";
+    let performanceColor = "text-red-600";
+    let performanceBg = "bg-red-50";
+    let performanceBorder = "border-red-400";
+    
+    if (insights.avgSentiment >= 0.8) {
+      performanceLevel = "excellent";
+      performanceColor = "text-green-600";
+      performanceBg = "bg-green-50";
+      performanceBorder = "border-green-400";
+    } else if (insights.avgSentiment >= 0.7) {
+      performanceLevel = "good";
+      performanceColor = "text-blue-600";
+      performanceBg = "bg-blue-50";
+      performanceBorder = "border-blue-400";
+    } else if (insights.avgSentiment >= 0.6) {
+      performanceLevel = "average";
+      performanceColor = "text-yellow-600";
+      performanceBg = "bg-yellow-50";
+      performanceBorder = "border-yellow-400";
+    }
+
+    // Correlation analysis
+    const correlationAbs = Math.abs(insights.incomeSentimentCorrelation);
+    let correlationStrength = "negligible";
+    if (correlationAbs > 0.7) correlationStrength = "strong";
+    else if (correlationAbs > 0.4) correlationStrength = "moderate";
+    else if (correlationAbs > 0.2) correlationStrength = "weak";
+
+    return {
+      performanceLevel,
+      performanceColor,
+      performanceBg,
+      performanceBorder,
+      correlationStrength,
+      insights
+    };
+  };
+
+  const review = generateDynamicReview();
+  const { insights } = review;
+
+  return (
+    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+      <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Income Demographics Review</h4>
+      <p className="text-sm text-gray-600 mb-3">
+        Analysis based on {insights.totalCustomers} customers across {insights.incomeGroups} income groups
+      </p>
+      
+      <div className="space-y-3 text-sm text-gray-700">
+        {/* Performance Overview */}
+        <div className={`p-3 ${review.performanceBg} rounded-lg border-l-4 ${review.performanceBorder}`}>
+          <p className={`font-medium ${review.performanceColor}`}>🎯 Overall Income Sentiment Performance: {review.performanceLevel.toUpperCase()}</p>
+          <p>
+            Your customer base shows an average sentiment score of {insights.avgSentiment.toFixed(3)} across all income groups. 
+            The {insights.bestIncomeGroup.incomeGroup} income group leads with {insights.bestIncomeGroup.averageScore.toFixed(3)} sentiment score 
+            ({insights.bestIncomeGroup.count} customers), while {insights.worstIncomeGroup.incomeGroup} shows the lowest at {insights.worstIncomeGroup.averageScore.toFixed(3)} 
+            ({insights.worstIncomeGroup.count} customers).
+          </p>
+        </div>
+
+        {/* Correlation Analysis */}
+        <div className="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+          <p className="font-medium text-blue-800">📈 Income-Sentiment Correlation: {review.correlationStrength.toUpperCase()}</p>
+          <p>
+            The correlation coefficient of {insights.incomeSentimentCorrelation.toFixed(3)} indicates a {review.correlationStrength} relationship 
+            between income level and customer satisfaction. 
+            {insights.incomeSentimentCorrelation > 0.4 
+              ? "This strong positive correlation suggests that higher-income customers tend to be more satisfied with your services."
+              : insights.incomeSentimentCorrelation < -0.4 
+              ? "This negative correlation indicates that higher-income customers may have higher expectations - focus on premium service quality."
+              : "The weak correlation suggests income doesn't strongly predict satisfaction - your service appeals across income levels."
+            }
+          </p>
+        </div>
+
+        {/* Best Performing Analysis */}
+        <div className="p-3 bg-green-50 rounded-lg border-l-4 border-green-400">
+          <p className="font-medium text-green-800">🏆 Top Performing Income Group</p>
+          <p>
+            The {insights.bestIncomeGroup.incomeGroup} income group ({insights.bestIncomeGroup.count} customers) achieves the highest satisfaction 
+            with a {insights.bestIncomeGroup.averageScore.toFixed(3)} sentiment score. This represents 
+            {((insights.bestIncomeGroup.count / insights.totalCustomers) * 100).toFixed(1)}% of your customer base and demonstrates 
+            excellent value perception in this income segment.
+          </p>
+        </div>
+
+        {/* Strategic Recommendations */}
+        <div className="p-3 bg-purple-50 rounded-lg border-l-4 border-purple-400">
+          <p className="font-medium text-purple-800">🚀 Income-Based Recommendations</p>
+          <ul className="list-disc list-inside mt-2 space-y-1">
+            {insights.incomeSentimentCorrelation > 0.4 && (
+              <li><strong>Premium Service Strategy:</strong> Higher-income customers are more satisfied - develop premium offerings to capture this segment</li>
+            )}
+            {insights.incomeSentimentCorrelation < -0.2 && (
+              <li><strong>Address Premium Expectations:</strong> Higher-income customers show lower satisfaction - enhance service quality for this segment</li>
+            )}
+            {insights.sentimentRange > 0.2 && (
+              <li><strong>Income-Tailored Approach:</strong> Significant satisfaction gaps exist - develop income-specific service strategies</li>
+            )}
+            <li><strong>Success Replication:</strong> Study {insights.bestIncomeGroup.incomeGroup} satisfaction drivers to improve other income segments</li>
+            {insights.worstIncomeGroup.averageScore < 0.6 && (
+              <li><strong>Priority Focus:</strong> Immediate attention needed for {insights.worstIncomeGroup.incomeGroup} group to prevent churn</li>
+            )}
+            {review.correlationStrength === 'negligible' && (
+              <li><strong>Universal Appeal:</strong> Your service works well across income levels - maintain this inclusive approach while optimizing quality</li>
+            )}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function IncomeSentimentChart({ loading: externalLoading }: { loading?: boolean }) {
   const [data, setData] = useState<IncomeSentimentData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,8 +344,11 @@ export default function IncomeSentimentChart({ loading: externalLoading }: { loa
           </ResponsiveContainer>
         </div>
         <div className="mt-4 text-sm text-gray-500 text-center">
-          Hover over points to see customer count
+          Hover over bars to see customer count
         </div>
+        
+        {/* AI Review Component */}
+        <DynamicIncomeSentimentReview data={data} />
       </CardContent>
     </Card>
   );

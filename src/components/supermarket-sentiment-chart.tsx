@@ -28,6 +28,184 @@ interface SupermarketSentimentChartProps {
   loading?: boolean;
 }
 
+const DynamicAnalystReview = ({ data }: { data: SupermarketSentimentData }) => {
+  const generateInsights = () => {
+    if (!data?.chartData || data.chartData.length === 0) {
+      return "No supermarket sentiment data available for analysis. Please ensure you have supermarket performance data and customer sentiment analyses in your database.";
+    }
+
+    const { chartData } = data;
+    
+    // Calculate statistics
+    const totalSupermarkets = chartData.length;
+    const averageSentiment = chartData.reduce((sum, item) => sum + item.averageScore, 0) / totalSupermarkets;
+    
+    // Find best and worst performing supermarkets
+    const bestPerformer = chartData.reduce((best, current) => 
+      current.averageScore > best.averageScore ? current : best
+    );
+    const worstPerformer = chartData.reduce((worst, current) => 
+      current.averageScore < worst.averageScore ? current : worst
+    );
+
+    // Performance categorization
+    const excellentPerformers = chartData.filter(item => item.averageScore > 0.75);
+    const goodPerformers = chartData.filter(item => item.averageScore > 0.6 && item.averageScore <= 0.75);
+    const averagePerformers = chartData.filter(item => item.averageScore > 0.4 && item.averageScore <= 0.6);
+    const poorPerformers = chartData.filter(item => item.averageScore <= 0.4);
+
+    // Calculate performance distribution
+    const performanceDistribution = {
+      excellent: (excellentPerformers.length / totalSupermarkets * 100),
+      good: (goodPerformers.length / totalSupermarkets * 100),
+      average: (averagePerformers.length / totalSupermarkets * 100),
+      poor: (poorPerformers.length / totalSupermarkets * 100)
+    };
+
+    // Calculate sentiment variance and standard deviation
+    const sentimentVariance = chartData.reduce((sum, item) => 
+      sum + Math.pow(item.averageScore - averageSentiment, 2), 0) / totalSupermarkets;
+    const sentimentStdDev = Math.sqrt(sentimentVariance);
+    const sentimentRange = bestPerformer.averageScore - worstPerformer.averageScore;
+
+    // Identify outliers (more than 1 standard deviation from mean)
+    const outliers = chartData.filter(item => 
+      Math.abs(item.averageScore - averageSentiment) > sentimentStdDev
+    );
+
+    return {
+      totalSupermarkets,
+      averageSentiment,
+      bestPerformer,
+      worstPerformer,
+      excellentPerformers,
+      goodPerformers,
+      averagePerformers,
+      poorPerformers,
+      performanceDistribution,
+      sentimentStdDev,
+      sentimentRange,
+      outliers
+    };
+  };
+
+  const insights = generateInsights();
+  
+  if (typeof insights === 'string') {
+    return (
+      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+        <h4 className="font-semibold text-gray-900 mb-2">🤖 AI Analysis</h4>
+        <p className="text-sm text-gray-700">{insights}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+      <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Supermarket Performance Analysis</h4>
+      <p className="text-sm text-gray-600 mb-3">
+        Comprehensive analysis of {insights.totalSupermarkets} supermarket locations
+      </p>
+      
+      <div className="space-y-3 text-sm text-gray-700">
+        {/* Overall Performance */}
+        <div className={`p-3 rounded-lg border-l-4 ${
+          insights.averageSentiment > 0.7 ? 'bg-green-50 border-green-400' :
+          insights.averageSentiment > 0.5 ? 'bg-blue-50 border-blue-400' :
+          insights.averageSentiment > 0.3 ? 'bg-yellow-50 border-yellow-400' :
+          'bg-red-50 border-red-400'
+        }`}>
+          <p className={`font-medium ${
+            insights.averageSentiment > 0.7 ? 'text-green-800' :
+            insights.averageSentiment > 0.5 ? 'text-blue-800' :
+            insights.averageSentiment > 0.3 ? 'text-yellow-800' :
+            'text-red-800'
+          }`}>
+            🏪 Network Performance: {
+              insights.averageSentiment > 0.7 ? 'EXCELLENT' :
+              insights.averageSentiment > 0.5 ? 'GOOD' :
+              insights.averageSentiment > 0.3 ? 'NEEDS IMPROVEMENT' :
+              'CRITICAL'
+            }
+          </p>
+          <p>
+            Average sentiment across all {insights.totalSupermarkets} locations is {insights.averageSentiment.toFixed(3)}. 
+            Performance variance is {insights.sentimentStdDev.toFixed(3)} with a range of {insights.sentimentRange.toFixed(3)}, 
+            indicating {insights.sentimentRange > 0.3 ? 'high' : insights.sentimentRange > 0.15 ? 'moderate' : 'low'} 
+            inconsistency between locations.
+          </p>
+        </div>
+
+        {/* Performance Distribution */}
+        <div className="p-3 bg-indigo-50 rounded-lg border-l-4 border-indigo-400">
+          <p className="font-medium text-indigo-800">📈 Performance Distribution</p>
+          <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+            <div className="flex justify-between">
+              <span>🌟 Excellent (&gt;0.75):</span>
+              <span className="font-medium">{insights.performanceDistribution.excellent.toFixed(1)}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span>✅ Good (0.6-0.75):</span>
+              <span className="font-medium">{insights.performanceDistribution.good.toFixed(1)}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span>⚡ Average (0.4-0.6):</span>
+              <span className="font-medium">{insights.performanceDistribution.average.toFixed(1)}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span>⚠️ Poor (≤0.4):</span>
+              <span className="font-medium">{insights.performanceDistribution.poor.toFixed(1)}%</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Top and Bottom Performers */}
+        <div className="p-3 bg-purple-50 rounded-lg border-l-4 border-purple-400">
+          <p className="font-medium text-purple-800">🏆 Performance Leaders</p>
+          <p>
+            <strong>Supermarket {insights.bestPerformer.supermarketId}</strong> leads with {insights.bestPerformer.averageScore.toFixed(3)} sentiment score, 
+            while <strong>Supermarket {insights.worstPerformer.supermarketId}</strong> needs attention with {insights.worstPerformer.averageScore.toFixed(3)} score. 
+            This {((insights.bestPerformer.averageScore - insights.worstPerformer.averageScore) * 100).toFixed(1)}% gap 
+            represents significant improvement opportunity.
+          </p>
+        </div>
+
+        {/* Outlier Analysis */}
+        {insights.outliers.length > 0 && (
+          <div className="p-3 bg-orange-50 rounded-lg border-l-4 border-orange-400">
+            <p className="font-medium text-orange-800">🎯 Performance Outliers</p>
+            <p>
+              {insights.outliers.length} location(s) show exceptional performance variation: 
+              {insights.outliers.map(store => `Supermarket ${store.supermarketId} (${store.averageScore.toFixed(2)})`).join(', ')}. 
+              These locations warrant detailed investigation for best practices or improvement needs.
+            </p>
+          </div>
+        )}
+
+        {/* Strategic Recommendations */}
+        <div className="p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
+          <p className="font-medium text-yellow-800">💡 Strategic Recommendations</p>
+          <ul className="mt-2 space-y-1 list-disc list-inside">
+            {insights.poorPerformers.length > 0 && (
+              <li>Immediate intervention needed for {insights.poorPerformers.length} underperforming location(s)</li>
+            )}
+            {insights.excellentPerformers.length > 0 && (
+              <li>Replicate successful practices from top {insights.excellentPerformers.length} performer(s) across network</li>
+            )}
+            {insights.sentimentRange > 0.2 && (
+              <li>Standardize operations to reduce performance inconsistency between locations</li>
+            )}
+            {insights.performanceDistribution.excellent < 25 && (
+              <li>Develop improvement programs to increase percentage of excellent-performing locations</li>
+            )}
+            <li>Implement location-specific customer experience enhancement strategies</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function SupermarketSentimentChart({ loading = false }: SupermarketSentimentChartProps) {
   const [data, setData] = useState<SupermarketSentimentData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -217,6 +395,9 @@ export default function SupermarketSentimentChart({ loading = false }: Supermark
             </div>
           </div>
         </div>
+        
+        {/* Dynamic AI Review */}
+        <DynamicAnalystReview data={data} />
       </CardContent>
     </Card>
   );

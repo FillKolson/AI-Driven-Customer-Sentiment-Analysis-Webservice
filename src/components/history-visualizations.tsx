@@ -24,6 +24,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   Calendar,
   TrendingDown, 
@@ -130,6 +137,7 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedChart, setSelectedChart] = useState("profit");
 
   useEffect(() => {
     if (analyses.length > 0) {
@@ -476,113 +484,120 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
   };
 
   return (
-    <Tabs defaultValue="profit" className="space-y-4">
-      <TabsList>
-        <TabsTrigger value="profit">
-          <DollarSign className="mr-2 h-4 w-4" />
-          Sentiment vs Profit
-        </TabsTrigger>
-        <TabsTrigger value="promotion">
-          <TrendingUp className="mr-2 h-4 w-4" />
-          Sentiment vs Promotion
-        </TabsTrigger>
-        <TabsTrigger value="frequency">
-          <ShoppingCart className="mr-2 h-4 w-4" />
-          Purchase Frequency
-        </TabsTrigger>
-        <TabsTrigger value="categories">
-          <PieChartIcon className="mr-2 h-4 w-4" />
-          Sentiment Categories
-        </TabsTrigger>
-        <TabsTrigger value="supermarket">
-          <Store className="mr-2 h-4 w-4" />
-          Supermarket Analysis
-        </TabsTrigger>
-        <TabsTrigger value="gender">
-          <Users className="mr-2 h-4 w-4" />
-          Gender Analysis
-        </TabsTrigger>
-        <TabsTrigger value="age">
-          <Calendar className="mr-2 h-4 w-4" />
-          Age Group Analysis
-        </TabsTrigger>
-        <TabsTrigger value="spending">
-          <CreditCard className="mr-2 h-4 w-4" />
-          Spending Analysis
-        </TabsTrigger>
-        <TabsTrigger value="income">
-          <DollarSign className="mr-2 h-4 w-4" />
-          Income Analysis
-        </TabsTrigger>
-        <TabsTrigger value="promotion-profit">
-          <TrendingUp className="mr-2 h-4 w-4" />
-          Promotion ROI
-        </TabsTrigger>
-        <TabsTrigger value="admin-profit">
-          <BarChart3 className="mr-2 h-4 w-4" />
-          Admin Spend ROI
-        </TabsTrigger>
-        <TabsTrigger value="advert-profit">
-          <Megaphone className="mr-2 h-4 w-4" />
-          Ad Spend ROI
-        </TabsTrigger>
-        <TabsTrigger value="monthly-sentiment">
-          <Calendar className="mr-2 h-4 w-4" />
-          Monthly Trend
-        </TabsTrigger>
-      </TabsList>
+    <div className="space-y-6">
+      {/* Chart Selection Dropdown */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ChartBar className="h-5 w-5 text-blue-600" />
+            Select Chart Visualization
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Select value={selectedChart} onValueChange={setSelectedChart}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Choose a chart to display" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="profit">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Sentiment vs Profit
+                </div>
+              </SelectItem>
+              <SelectItem value="promotion">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Sentiment vs Promotion
+                </div>
+              </SelectItem>
+              <SelectItem value="frequency">
+                <div className="flex items-center gap-2">
+                  <ShoppingCart className="h-4 w-4" />
+                  Purchase Frequency
+                </div>
+              </SelectItem>
+              <SelectItem value="categories">
+                <div className="flex items-center gap-2">
+                  <PieChartIcon className="h-4 w-4" />
+                  Sentiment Categories
+                </div>
+              </SelectItem>
+              <SelectItem value="supermarket">
+                <div className="flex items-center gap-2">
+                  <Store className="h-4 w-4" />
+                  Supermarket Analysis
+                </div>
+              </SelectItem>
+              <SelectItem value="gender">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Gender Analysis
+                </div>
+              </SelectItem>
+              <SelectItem value="age">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Age Group Analysis
+                </div>
+              </SelectItem>
+              <SelectItem value="spending">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Spending Analysis
+                </div>
+              </SelectItem>
+              <SelectItem value="income">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Income Analysis
+                </div>
+              </SelectItem>
+              <SelectItem value="promotion-profit">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Promotion ROI
+                </div>
+              </SelectItem>
+              <SelectItem value="admin-profit">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Admin Spend ROI
+                </div>
+              </SelectItem>
+              <SelectItem value="advert-profit">
+                <div className="flex items-center gap-2">
+                  <Megaphone className="h-4 w-4" />
+                  Ad Spend ROI
+                </div>
+              </SelectItem>
+              <SelectItem value="monthly-sentiment">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Monthly Trend
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
-      <TabsContent value="profit" className="space-y-4">
-        <SentimentProfitChart loading={loading} />
-      </TabsContent>
-
-      <TabsContent value="promotion" className="space-y-4">
-        <SentimentPromotionChart loading={loading} />
-      </TabsContent>
-
-      <TabsContent value="frequency" className="space-y-4">
-        <SentimentFrequencyChart loading={loading} />
-      </TabsContent>
-
-      <TabsContent value="categories" className="space-y-4">
-        <SentimentCategoriesChart loading={loading} />
-      </TabsContent>
-
-      <TabsContent value="supermarket" className="space-y-4">
-        <SupermarketSentimentChart loading={loading} />
-      </TabsContent>
-
-      <TabsContent value="gender" className="space-y-4">
-        <GenderSentimentChart loading={loading} />
-      </TabsContent>
-
-      <TabsContent value="age" className="space-y-4">
-        <AgeSentimentChart loading={loading} />
-      </TabsContent>
-
-      <TabsContent value="spending" className="space-y-4">
-        <SpendingSentimentChart loading={loading} />
-      </TabsContent>
-
-      <TabsContent value="income" className="space-y-4">
-        <IncomeSentimentChart loading={loading} />
-      </TabsContent>
-
-      <TabsContent value="promotion-profit" className="space-y-4">
-        <PromotionProfitChart loading={loading} />
-      </TabsContent>
-
-      <TabsContent value="admin-profit" className="space-y-4">
-        <AdminProfitChart loading={loading} />
-      </TabsContent>
-
-      <TabsContent value="advert-profit" className="space-y-4">
-        <AdvertProfitChart loading={loading} />
-      </TabsContent>
-
-      <TabsContent value="monthly-sentiment" className="space-y-4">
-        <MonthlySentimentChart loading={loading} />
-      </TabsContent>
-    </Tabs>
+      {/* Chart Display */}
+      <div className="space-y-4">
+        {selectedChart === "profit" && <SentimentProfitChart loading={loading} />}
+        {selectedChart === "promotion" && <SentimentPromotionChart loading={loading} />}
+        {selectedChart === "frequency" && <SentimentFrequencyChart loading={loading} />}
+        {selectedChart === "categories" && <SentimentCategoriesChart loading={loading} />}
+        {selectedChart === "supermarket" && <SupermarketSentimentChart loading={loading} />}
+        {selectedChart === "gender" && <GenderSentimentChart loading={loading} />}
+        {selectedChart === "age" && <AgeSentimentChart loading={loading} />}
+        {selectedChart === "spending" && <SpendingSentimentChart loading={loading} />}
+        {selectedChart === "income" && <IncomeSentimentChart loading={loading} />}
+        {selectedChart === "promotion-profit" && <PromotionProfitChart loading={loading} />}
+        {selectedChart === "admin-profit" && <AdminProfitChart loading={loading} />}
+        {selectedChart === "advert-profit" && <AdvertProfitChart loading={loading} />}
+        {selectedChart === "monthly-sentiment" && <MonthlySentimentChart loading={loading} />}
+      </div>
+    </div>
   );
 }

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '../../../../../supabase/server';
 
 type MonthlySentimentData = {
-  month: string;
+  sentiment_date: string;
   average_score: number;
   analysis_count: number;
 };
@@ -18,11 +18,12 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get sentiment data grouped by month
+    // Get sentiment data directly from sentiment_analyses table grouped by date
     const { data, error } = await supabase
-      .rpc('get_monthly_sentiment_analytics', {
-        p_user_id: user.id
-      });
+      .from('sentiment_analyses')
+      .select('sentiment_date, sentiment_score')
+      .eq('user_id', user.id)
+      .order('sentiment_date', { ascending: true });
 
     if (error) {
       console.error('Error fetching monthly sentiment data:', error);
@@ -37,12 +38,36 @@ export async function GET() {
       return NextResponse.json({ chartData: [] });
     }
 
-    // Format the data for the chart
-    const formattedData = data.map((item: any) => ({
-      month: item.month,
-      averageScore: parseFloat(item.average_score.toFixed(2)),
-      count: item.analysis_count
-    }));
+    // Group data by month and calculate average sentiment score per month
+    const groupedData = data.reduce((acc: any, item: any) => {
+      // Extract year-month from sentiment_date (e.g., "2023-12-25" -> "2023-12")
+      const date = new Date(item.sentiment_date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!acc[monthKey]) {
+        acc[monthKey] = {
+          month: monthKey,
+          scores: [],
+          count: 0
+        };
+      }
+      acc[monthKey].scores.push(item.sentiment_score);
+      acc[monthKey].count++;
+      return acc;
+    }, {});
+
+    // Calculate average scores for each month
+    const formattedData = Object.values(groupedData).map((item: any) => {
+      const averageScore = item.scores.reduce((sum: number, score: number) => sum + score, 0) / item.scores.length;
+      return {
+        month: item.month,
+        averageScore: parseFloat(averageScore.toFixed(3)),
+        count: item.count
+      };
+    });
+
+    // Sort by month
+    formattedData.sort((a, b) => new Date(a.month + '-01').getTime() - new Date(b.month + '-01').getTime());
 
     return NextResponse.json({ chartData: formattedData });
   } catch (error) {
