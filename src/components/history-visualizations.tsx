@@ -29,7 +29,7 @@ import {
   TrendingUp, 
   TrendingDown, 
   Minus, 
-  BarChart3, 
+  Store,
   PieChart as PieChartIcon, 
   Activity,
   AlertTriangle,
@@ -38,12 +38,14 @@ import {
   ShoppingCart,
   Target,
   ChartBar,
-  ScatterChart as ScatterChartIcon
+  ScatterChart as ScatterChartIcon,
+  BarChart3
 } from "lucide-react";
 import SentimentProfitChart from "./sentiment-profit-chart";
 import SentimentPromotionChart from "./sentiment-promotion-chart";
 import SentimentFrequencyChart from "./sentiment-frequency-chart";
 import SentimentCategoriesChart from "./sentiment-categories-chart";
+import SupermarketSentimentChart from "./supermarket-sentiment-chart";
 
 interface Analysis {
   id: string;
@@ -463,104 +465,50 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
     return denominator === 0 ? 0 : numerator / denominator;
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-8 mb-8">
-        {[...Array(14)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
-            <CardHeader>
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80 bg-gray-200 rounded"></div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card className="mb-8">
-        <CardContent className="flex items-center justify-center h-64">
-          <div className="text-center text-red-500">
-            <AlertTriangle className="w-12 h-12 mx-auto mb-4" />
-            <p>Error loading charts: {error}</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!chartData || analyses.length === 0) {
-    return (
-      <Card className="mb-8">
-        <CardContent className="flex items-center justify-center h-64">
-          <div className="text-center text-gray-500">
-            <BarChart3 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p>No data available for visualizations</p>
-            <p className="text-sm mt-1">Start analyzing text to see charts and graphs</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <div className="space-y-8 mb-8">
-      {/* Chart 1: New Sentiment vs Profit Chart with Real Data */}
-      <SentimentProfitChart loading={loading} />
+    <Tabs defaultValue="profit" className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="profit">
+          <DollarSign className="mr-2 h-4 w-4" />
+          Sentiment vs Profit
+        </TabsTrigger>
+        <TabsTrigger value="promotion">
+          <TrendingUp className="mr-2 h-4 w-4" />
+          Sentiment vs Promotion
+        </TabsTrigger>
+        <TabsTrigger value="frequency">
+          <ShoppingCart className="mr-2 h-4 w-4" />
+          Purchase Frequency
+        </TabsTrigger>
+        <TabsTrigger value="categories">
+          <PieChart className="mr-2 h-4 w-4" />
+          Sentiment Categories
+        </TabsTrigger>
+        <TabsTrigger value="supermarket">
+          <Store className="mr-2 h-4 w-4" />
+          Supermarket Analysis
+        </TabsTrigger>
+      </TabsList>
 
-      {/* Chart 2: New Sentiment vs Promotion Spend Chart with Real Data */}
-      <SentimentPromotionChart loading={loading} />
+      <TabsContent value="profit" className="space-y-4">
+        <SentimentProfitChart loading={loading} />
+      </TabsContent>
 
-      {/* Chart 3: New Sentiment vs Purchase Frequency Chart with Real Data */}
-      <SentimentFrequencyChart loading={loading} />
+      <TabsContent value="promotion" className="space-y-4">
+        <SentimentPromotionChart loading={loading} />
+      </TabsContent>
 
-      {/* Chart 4: New Sentiment Categories Distribution Chart with Real Data */}
-      <SentimentCategoriesChart loading={loading} />
+      <TabsContent value="frequency" className="space-y-4">
+        <SentimentFrequencyChart loading={loading} />
+      </TabsContent>
 
-      {/* Additional charts continue with the same pattern... */}
-      {/* I'm including just a few more for brevity, but the pattern continues for all remaining charts */}
-      
-      {/* Chart 5: Supermarket Sentiment */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5" />
-            Average Sentiment Score by Supermarket
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart 
-                data={chartData.supermarketSentiment}
-                layout="horizontal"
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis 
-                  dataKey="supermarketId" 
-                  type="category" 
-                  width={80}
-                  tick={{ fontSize: 12 }}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="sentimentScore" fill="#3b82f6" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-700">
-              {generateSupermarketSentimentReview(chartData.supermarketSentiment)}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      <TabsContent value="categories" className="space-y-4">
+        <SentimentCategoriesChart loading={loading} />
+      </TabsContent>
+
+      <TabsContent value="supermarket" className="space-y-4">
+        <SupermarketSentimentChart loading={loading} />
+      </TabsContent>
+    </Tabs>
   );
 }
