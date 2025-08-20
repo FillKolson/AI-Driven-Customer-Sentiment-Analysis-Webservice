@@ -47,6 +47,7 @@ import SentimentFrequencyChart from "./sentiment-frequency-chart";
 import SentimentCategoriesChart from "./sentiment-categories-chart";
 import SupermarketSentimentChart from "./supermarket-sentiment-chart";
 import GenderSentimentChart from "./gender-sentiment-chart";
+import AgeSentimentChart from "./age-sentiment-chart";
 
 interface Analysis {
   id: string;
@@ -493,6 +494,10 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
           <Users className="mr-2 h-4 w-4" />
           Gender Analysis
         </TabsTrigger>
+        <TabsTrigger value="age">
+          <Calendar className="mr-2 h-4 w-4" />
+          Age Group Analysis
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="profit" className="space-y-4">
@@ -517,6 +522,10 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
 
       <TabsContent value="gender" className="space-y-4">
         <GenderSentimentChart loading={loading} />
+      </TabsContent>
+
+      <TabsContent value="age" className="space-y-4">
+        <AgeSentimentChart loading={loading} />
       </TabsContent>
     </Tabs>
   );
