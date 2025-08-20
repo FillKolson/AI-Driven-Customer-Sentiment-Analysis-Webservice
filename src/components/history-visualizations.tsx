@@ -55,6 +55,7 @@ import IncomeSentimentChart from "./income-sentiment-chart";
 import PromotionProfitChart from "./promotion-profit-chart";
 import AdminProfitChart from "./admin-profit-chart";
 import AdvertProfitChart from "./advert-profit-chart";
+import MonthlySentimentChart from "./monthly-sentiment-chart";
 
 interface Analysis {
   id: string;
@@ -490,7 +491,7 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
           Purchase Frequency
         </TabsTrigger>
         <TabsTrigger value="categories">
-          <PieChart className="mr-2 h-4 w-4" />
+          <PieChartIcon className="mr-2 h-4 w-4" />
           Sentiment Categories
         </TabsTrigger>
         <TabsTrigger value="supermarket">
@@ -524,6 +525,10 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
         <TabsTrigger value="advert-profit">
           <Megaphone className="mr-2 h-4 w-4" />
           Ad Spend ROI
+        </TabsTrigger>
+        <TabsTrigger value="monthly-sentiment">
+          <Calendar className="mr-2 h-4 w-4" />
+          Monthly Trend
         </TabsTrigger>
       </TabsList>
 
@@ -573,6 +578,10 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
 
       <TabsContent value="advert-profit" className="space-y-4">
         <AdvertProfitChart loading={loading} />
+      </TabsContent>
+
+      <TabsContent value="monthly-sentiment" className="space-y-4">
+        <MonthlySentimentChart loading={loading} />
       </TabsContent>
     </Tabs>
   );
