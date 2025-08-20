@@ -25,8 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  Calendar, 
-  TrendingUp, 
+  Calendar,
   TrendingDown, 
   Minus, 
   Store,
@@ -40,7 +39,8 @@ import {
   ChartBar,
   ScatterChart as ScatterChartIcon,
   BarChart3,
-  CreditCard
+  CreditCard,
+  TrendingUp
 } from "lucide-react";
 import SentimentProfitChart from "./sentiment-profit-chart";
 import SentimentPromotionChart from "./sentiment-promotion-chart";
@@ -51,6 +51,7 @@ import GenderSentimentChart from "./gender-sentiment-chart";
 import AgeSentimentChart from "./age-sentiment-chart";
 import SpendingSentimentChart from "./spending-sentiment-chart";
 import IncomeSentimentChart from "./income-sentiment-chart";
+import PromotionProfitChart from "./promotion-profit-chart";
 
 interface Analysis {
   id: string;
@@ -509,6 +510,10 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
           <DollarSign className="mr-2 h-4 w-4" />
           Income Analysis
         </TabsTrigger>
+        <TabsTrigger value="promotion-profit">
+          <TrendingUp className="mr-2 h-4 w-4" />
+          Promotion ROI
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="profit" className="space-y-4">
@@ -545,6 +550,10 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
 
       <TabsContent value="income" className="space-y-4">
         <IncomeSentimentChart loading={loading} />
+      </TabsContent>
+
+      <TabsContent value="promotion-profit" className="space-y-4">
+        <PromotionProfitChart loading={loading} />
       </TabsContent>
     </Tabs>
   );
