@@ -39,6 +39,7 @@ import {
   ChartBar,
   ScatterChart as ScatterChartIcon,
   BarChart3,
+  Megaphone,
   CreditCard,
   TrendingUp
 } from "lucide-react";
@@ -53,6 +54,7 @@ import SpendingSentimentChart from "./spending-sentiment-chart";
 import IncomeSentimentChart from "./income-sentiment-chart";
 import PromotionProfitChart from "./promotion-profit-chart";
 import AdminProfitChart from "./admin-profit-chart";
+import AdvertProfitChart from "./advert-profit-chart";
 
 interface Analysis {
   id: string;
@@ -519,6 +521,10 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
           <BarChart3 className="mr-2 h-4 w-4" />
           Admin Spend ROI
         </TabsTrigger>
+        <TabsTrigger value="advert-profit">
+          <Megaphone className="mr-2 h-4 w-4" />
+          Ad Spend ROI
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="profit" className="space-y-4">
@@ -563,6 +569,10 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
 
       <TabsContent value="admin-profit" className="space-y-4">
         <AdminProfitChart loading={loading} />
+      </TabsContent>
+
+      <TabsContent value="advert-profit" className="space-y-4">
+        <AdvertProfitChart loading={loading} />
       </TabsContent>
     </Tabs>
   );
