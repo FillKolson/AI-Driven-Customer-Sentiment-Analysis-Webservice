@@ -46,6 +46,7 @@ import SentimentPromotionChart from "./sentiment-promotion-chart";
 import SentimentFrequencyChart from "./sentiment-frequency-chart";
 import SentimentCategoriesChart from "./sentiment-categories-chart";
 import SupermarketSentimentChart from "./supermarket-sentiment-chart";
+import GenderSentimentChart from "./gender-sentiment-chart";
 
 interface Analysis {
   id: string;
@@ -488,6 +489,10 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
           <Store className="mr-2 h-4 w-4" />
           Supermarket Analysis
         </TabsTrigger>
+        <TabsTrigger value="gender">
+          <Users className="mr-2 h-4 w-4" />
+          Gender Analysis
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="profit" className="space-y-4">
@@ -508,6 +513,10 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
 
       <TabsContent value="supermarket" className="space-y-4">
         <SupermarketSentimentChart loading={loading} />
+      </TabsContent>
+
+      <TabsContent value="gender" className="space-y-4">
+        <GenderSentimentChart loading={loading} />
       </TabsContent>
     </Tabs>
   );
