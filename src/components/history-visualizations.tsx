@@ -52,6 +52,7 @@ import AgeSentimentChart from "./age-sentiment-chart";
 import SpendingSentimentChart from "./spending-sentiment-chart";
 import IncomeSentimentChart from "./income-sentiment-chart";
 import PromotionProfitChart from "./promotion-profit-chart";
+import AdminProfitChart from "./admin-profit-chart";
 
 interface Analysis {
   id: string;
@@ -514,6 +515,10 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
           <TrendingUp className="mr-2 h-4 w-4" />
           Promotion ROI
         </TabsTrigger>
+        <TabsTrigger value="admin-profit">
+          <BarChart3 className="mr-2 h-4 w-4" />
+          Admin Spend ROI
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="profit" className="space-y-4">
@@ -554,6 +559,10 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
 
       <TabsContent value="promotion-profit" className="space-y-4">
         <PromotionProfitChart loading={loading} />
+      </TabsContent>
+
+      <TabsContent value="admin-profit" className="space-y-4">
+        <AdminProfitChart loading={loading} />
       </TabsContent>
     </Tabs>
   );
