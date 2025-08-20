@@ -39,7 +39,8 @@ import {
   Target,
   ChartBar,
   ScatterChart as ScatterChartIcon,
-  BarChart3
+  BarChart3,
+  CreditCard
 } from "lucide-react";
 import SentimentProfitChart from "./sentiment-profit-chart";
 import SentimentPromotionChart from "./sentiment-promotion-chart";
@@ -48,6 +49,7 @@ import SentimentCategoriesChart from "./sentiment-categories-chart";
 import SupermarketSentimentChart from "./supermarket-sentiment-chart";
 import GenderSentimentChart from "./gender-sentiment-chart";
 import AgeSentimentChart from "./age-sentiment-chart";
+import SpendingSentimentChart from "./spending-sentiment-chart";
 
 interface Analysis {
   id: string;
@@ -498,6 +500,10 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
           <Calendar className="mr-2 h-4 w-4" />
           Age Group Analysis
         </TabsTrigger>
+        <TabsTrigger value="spending">
+          <CreditCard className="mr-2 h-4 w-4" />
+          Spending Analysis
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="profit" className="space-y-4">
@@ -526,6 +532,10 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
 
       <TabsContent value="age" className="space-y-4">
         <AgeSentimentChart loading={loading} />
+      </TabsContent>
+
+      <TabsContent value="spending" className="space-y-4">
+        <SpendingSentimentChart loading={loading} />
       </TabsContent>
     </Tabs>
   );
