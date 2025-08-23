@@ -336,12 +336,10 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
                     accept=".csv"
                     onChange={(e) => handleFileSelect(config.key, e.target.files?.[0] || null)}
                     disabled={status.status === 'uploading' || isBulkUploading}
+                    className="cursor-pointer transition-colors hover:bg-blue-50 hover:border-blue-300"
                   />
                   <p className="text-xs text-gray-500">
                     Expected columns: {config.expectedColumns.join(', ')}
-                  </p>
-                  <p className="text-xs text-blue-600">
-                    Sample file: {config.sampleFile}
                   </p>
                 </div>
 
@@ -368,23 +366,7 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
                   </Alert>
                 )}
 
-                <Button
-                  onClick={() => uploadCsvData(config.key)}
-                  disabled={!status.file || status.status === 'uploading' || isBulkUploading}
-                  className="w-full"
-                >
-                  {status.status === 'uploading' ? (
-                    <>
-                      <Upload className="w-4 h-4 mr-2 animate-pulse" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4 mr-2" />
-                      Upload to {config.title}
-                    </>
-                  )}
-                </Button>
+                {null}
               </CardContent>
             </Card>
           );
