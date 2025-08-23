@@ -6,8 +6,9 @@ import FileUpload from "@/components/file-upload";
 import BatchAnalysisResults from "@/components/batch-analysis-results";
 import DashboardStats from "@/components/dashboard-stats";
 import RecentAnalyses from "@/components/recent-analyses";
+import CsvDataUploader from "@/components/csv-data-uploader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Zap, Upload } from "lucide-react";
+import { Zap, Upload, Database } from "lucide-react";
 
 interface DashboardContentProps {
   userId: string;
@@ -113,6 +114,10 @@ export default function DashboardContent({
             <RecentAnalyses userId={userId} />
           </div>
         </div>
+        {/* CSV Data Uploader */}
+        <section className="mt-8">
+          <CsvDataUploader userId={userId} />
+        </section>
       </div>
     </main>
   );
