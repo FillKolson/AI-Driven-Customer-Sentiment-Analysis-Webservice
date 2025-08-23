@@ -63,6 +63,7 @@ import PromotionProfitChart from "./promotion-profit-chart";
 import AdminProfitChart from "./admin-profit-chart";
 import AdvertProfitChart from "./advert-profit-chart";
 import MonthlySentimentChart from "./monthly-sentiment-chart";
+import ProductQuantitiesChart from "./product-quantities-chart";
 
 interface Analysis {
   id: string;
@@ -109,6 +110,7 @@ interface ChartData {
   advertisementProfitData: Array<{ advertisementSpend: number; profit: number }>;
   monthlySentiment: Array<{ month: string; sentimentScore: number; percentage: number }>;
   productCount: Array<{ product: string; count: number }>;
+  productQuantities: Array<{ product_name: string; quantity: number }>;
 }
 
 interface SentimentProfitApiResponse {
@@ -137,7 +139,7 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedChart, setSelectedChart] = useState("profit");
+  const [selectedChart, setSelectedChart] = useState("product-quantities");
 
   useEffect(() => {
     if (analyses.length > 0) {
@@ -162,6 +164,15 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
 
   const processDataForCharts = async () => {
     try {
+      // Set loading state
+      setLoading(true);
+      
+      // Fetch product quantities data
+      const quantitiesResponse = await fetch('/api/analytics/product-quantities');
+      if (!quantitiesResponse.ok) throw new Error('Failed to fetch product quantities');
+      const { products: productQuantities } = await quantitiesResponse.json();
+      
+      // Process other chart data...
       setLoading(true);
       
       // Fetch real sentiment-profit data from API
@@ -299,7 +310,10 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
             acc[product] = (acc[product] || 0) + 1;
             return acc;
           }, {} as Record<string, number>)
-        ).map(([product, count]) => ({ product, count })).sort((a, b) => b.count - a.count)
+        ).map(([product, count]) => ({ product, count })).sort((a, b) => b.count - a.count),
+
+        // Chart 15: Product Quantities
+        productQuantities: productQuantities,
       };
 
       setChartData(data);
@@ -577,6 +591,12 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
                   Monthly Trend
                 </div>
               </SelectItem>
+              <SelectItem value="product-quantities">
+                <div className="flex items-center gap-2">
+                  <ShoppingCart className="h-4 w-4" />
+                  Product Quantities
+                </div>
+              </SelectItem>
             </SelectContent>
           </Select>
         </CardContent>
@@ -597,6 +617,7 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
         {selectedChart === "admin-profit" && <AdminProfitChart loading={loading} />}
         {selectedChart === "advert-profit" && <AdvertProfitChart loading={loading} />}
         {selectedChart === "monthly-sentiment" && <MonthlySentimentChart loading={loading} />}
+        {selectedChart === "product-quantities" && <ProductQuantitiesChart />}
       </div>
     </div>
   );
