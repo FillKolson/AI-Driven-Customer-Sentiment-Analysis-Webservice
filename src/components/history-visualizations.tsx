@@ -498,7 +498,7 @@ export default function HistoryVisualizations({ analyses }: HistoryVisualization
   };
 
   return (
-    <div className="space-y-6">
+    <div className="mt-6">
       {/* Chart Selection Dropdown */}
       <Card>
         <CardHeader>
