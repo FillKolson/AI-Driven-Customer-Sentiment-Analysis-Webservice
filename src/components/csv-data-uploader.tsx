@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -277,26 +278,30 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
         </div>
       </div>
 
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          Make sure your CSV files match the expected format.
-        </AlertDescription>
+      <Alert className="pt-4 pr-4 pb-4">
+        <div className="flex items-center gap-2 justify-start">
+          <div className="shrink-0">
+            <AlertCircle className="h-4 w-4" />
+          </div>
+          <div>
+            <AlertDescription className="m-0">
+              Make sure your CSV files match the expected format.
+            </AlertDescription>
+          </div>
+        </div>
       </Alert>
 
-      <div className="grid gap-4 md:grid-cols-3 items-end">
-        <div className="md:col-span-2 space-y-2">
-          <Label htmlFor="dataset-name">Dataset Name</Label>
-          <Input
-            id="dataset-name"
-            placeholder="e.g., July_2025_Campaign_A"
-            value={datasetName}
-            onChange={(e) => setDatasetName(e.target.value)}
-            disabled={isBulkUploading}
-          />
-          <p className="text-xs text-gray-500">This value will be written to the file_name column for all rows across all tables.</p>
-        </div>
-        <div>
+      <div className="space-y-2">
+        <Label htmlFor="dataset-name">Dataset Name</Label>
+        <Input
+          id="dataset-name"
+          placeholder="e.g., July_2025_Campaign_A"
+          value={datasetName}
+          onChange={(e) => setDatasetName(e.target.value)}
+          disabled={isBulkUploading}
+          className="w-full"
+        />
+        <div className="flex gap-2">
           <Button className="w-full" onClick={uploadAllInOrder} disabled={isBulkUploading}>
             {isBulkUploading ? (
               <>
@@ -309,6 +314,9 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
                 Upload All (Ordered)
               </>
             )}
+          </Button>
+          <Button asChild variant="outline" className="whitespace-nowrap">
+            <Link href="/dashboard/history">View data visualizations</Link>
           </Button>
         </div>
       </div>
