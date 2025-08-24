@@ -37,6 +37,14 @@ import { useToast } from "@/components/ui/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import HistoryVisualizations from "@/components/history-visualizations";
 import KeyMetricsChart from "@/components/key-metrics-chart";
+import {
+  Select as UiSelect,
+  SelectContent as UiSelectContent,
+  SelectItem as UiSelectItem,
+  SelectTrigger as UiSelectTrigger,
+  SelectValue as UiSelectValue,
+} from "@/components/ui/select";
+import { Trash2 } from "lucide-react";
 
 interface Analysis {
   id: string;
@@ -80,6 +88,10 @@ export default function HistoryPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const { toast } = useToast();
+  // Dataset deletion state
+  const [datasets, setDatasets] = useState<string[]>([]);
+  const [selectedDataset, setSelectedDataset] = useState<string>("");
+  const [deleting, setDeleting] = useState(false);
 
   const fetchAnalyses = async (page: number = 1) => {
     setLoading(true);
@@ -131,6 +143,7 @@ export default function HistoryPage() {
   useEffect(() => {
     fetchAnalyses(currentPage);
     fetchAllAnalyses();
+    fetchDatasets();
   }, [currentPage]);
 
   // Auto-refresh data every 30 seconds to catch new analyses
@@ -184,10 +197,58 @@ export default function HistoryPage() {
   const handleRefresh = async () => {
     await fetchAnalyses(currentPage);
     await fetchAllAnalyses();
+    await fetchDatasets();
     toast({
       title: "Data Refreshed",
       description: "Analysis history has been updated",
     });
+  };
+
+  const fetchDatasets = async () => {
+    try {
+      const res = await fetch('/api/datasets');
+      if (res.ok) {
+        const data = await res.json();
+        setDatasets(Array.isArray(data.datasets) ? data.datasets : []);
+        // keep selected if still present, otherwise clear
+        setSelectedDataset((prev) => (data.datasets?.includes(prev) ? prev : ""));
+      }
+    } catch (e) {
+      console.error('Failed to fetch datasets', e);
+    }
+  };
+
+  const handleDeleteDataset = async () => {
+    if (!selectedDataset) {
+      toast({ title: 'No dataset selected', description: 'Please choose a dataset to delete', variant: 'destructive' });
+      return;
+    }
+    if (!confirm(`Delete dataset "${selectedDataset}" from all related tables? This cannot be undone.`)) return;
+
+    setDeleting(true);
+    try {
+      const res = await fetch('/api/datasets', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_name: selectedDataset })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast({ title: 'Dataset deleted', description: data.message || `Removed "${selectedDataset}"` });
+        // refresh everything
+        await fetchAnalyses(currentPage);
+        await fetchAllAnalyses();
+        await fetchDatasets();
+        setSelectedDataset("");
+      } else {
+        toast({ title: 'Deletion issue', description: data.error || data.message || 'Failed to delete dataset', variant: 'destructive' });
+      }
+    } catch (e) {
+      console.error('Delete dataset error', e);
+      toast({ title: 'Deletion failed', description: 'Unexpected error occurred', variant: 'destructive' });
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleDownloadCSV = async () => {
@@ -289,10 +350,43 @@ export default function HistoryPage() {
         </div>
 
         {/* Key Metrics Chart - Positive Sentiment Analysis */}
-        <KeyMetricsChart analyses={allAnalyses} loading={loading} />
+        <KeyMetricsChart loading={loading} />
 
         {/* Data Visualizations */}
-        <HistoryVisualizations analyses={allAnalyses} loading={loading} />
+        <HistoryVisualizations analyses={allAnalyses} />
+
+        {/* Dataset Deletion */}
+        <Card className="bg-white mt-6">
+          <CardHeader>
+            <CardTitle>Delete Dataset</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+              <div className="w-full sm:w-80">
+                <UiSelect value={selectedDataset} onValueChange={setSelectedDataset}>
+                  <UiSelectTrigger className="w-full">
+                    <UiSelectValue placeholder={datasets.length ? 'Select dataset (file_name)' : 'No datasets found'} />
+                  </UiSelectTrigger>
+                  <UiSelectContent>
+                    {datasets.map((name) => (
+                      <UiSelectItem key={name} value={name}>{name}</UiSelectItem>
+                    ))}
+                  </UiSelectContent>
+                </UiSelect>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDeleteDataset}
+                disabled={deleting || !selectedDataset}
+                title="Delete selected dataset from all related tables"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                {deleting ? 'Deleting...' : 'Delete Dataset'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="bg-white">
           <CardHeader>
