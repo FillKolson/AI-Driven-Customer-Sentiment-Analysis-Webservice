@@ -285,6 +285,24 @@ export async function POST(request: NextRequest) {
               totalInserted += batch.length;
             }
 
+            // Calculate tokens based on data rows (excluding header) for sentiment_analyses table only
+            let tokensUsed = 0;
+            if (tableType === 'sentiment_analyses') {
+              // Count non-empty lines and subtract 1 for the header
+              const lineCount = fileContent.split('\n').filter(line => line.trim() !== '').length;
+              tokensUsed = Math.max(0, lineCount - 1); // Exclude header
+            }
+
+            // Update user's monthly usage using named parameters
+            const { error: usageError } = await supabase.rpc('increment_monthly_usage', {
+              user_id_param: user.id,
+              token_count: tokensUsed
+            });
+
+            if (usageError) {
+              console.error('Error updating monthly usage:', usageError);
+            }
+
             // Log the upload activity
             await supabase
               .from('csv_upload_logs')
@@ -293,8 +311,15 @@ export async function POST(request: NextRequest) {
                 table_name: config.tableName,
                 records_processed: totalInserted,
                 upload_date: new Date().toISOString(),
-                file_name: datasetName ?? file.name
+                file_name: datasetName ?? file.name,
+                tokens_used: tokensUsed
               });
+
+            // Update usage tracking with tokens consumed
+            await supabase.rpc('increment_usage', {
+              user_id: user.id,
+              tokens: tokensUsed
+            });
 
             resolve(NextResponse.json({
               success: true,
