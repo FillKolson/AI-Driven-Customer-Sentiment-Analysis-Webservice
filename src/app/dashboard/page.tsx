@@ -1,4 +1,3 @@
-import DashboardNavbar from "@/components/dashboard-navbar";
 import { createClient } from "../../../supabase/server";
 import { redirect } from "next/navigation";
 import DashboardContent from "@/components/dashboard-content";
@@ -24,7 +23,6 @@ export default async function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DashboardNavbar />
       <DashboardContent
         userId={user.id}
         currentUsage={profile?.api_usage_current_month || 0}

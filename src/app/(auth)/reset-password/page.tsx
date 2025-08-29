@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { resetPasswordAction } from "@/app/actions";
-import Navbar from "@/components/navbar";
 
 export default async function ResetPassword(props: {
   searchParams: Promise<Message>;
@@ -45,7 +44,6 @@ export default async function ResetPassword(props: {
 
   return (
     <>
-      <Navbar />
       <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-8">
         <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-sm">
           <form className="flex flex-col space-y-6">

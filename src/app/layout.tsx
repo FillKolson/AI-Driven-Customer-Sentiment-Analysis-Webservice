@@ -1,5 +1,6 @@
 import { TempoInit } from "@/components/tempo-init";
 import GlobalUsageNotification from "@/components/global-usage-notification";
+import Navbar from "@/components/navbar";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
@@ -23,7 +24,10 @@ export default function RootLayout({
       <Script src="https://api.tempolabs.ai/proxy-asset?url=https://storage.googleapis.com/tempo-public-assets/error-handling.js" />
       <body className={inter.className}>
         <GlobalUsageNotification />
-        {children}
+        <Navbar />
+        <main className="min-h-[calc(100vh-4rem)]">
+          {children}
+        </main>
         <TempoInit />
       </body>
     </html>

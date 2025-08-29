@@ -32,7 +32,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
-import DashboardNavbar from "@/components/dashboard-navbar";
 import { useToast } from "@/components/ui/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import HistoryVisualizations from "@/components/history-visualizations";
@@ -328,7 +327,6 @@ export default function HistoryPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DashboardNavbar />
       <Toaster />
       <main className="container mx-auto px-4 py-8">
         {/* Header */}

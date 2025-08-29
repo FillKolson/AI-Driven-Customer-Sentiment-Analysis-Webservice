@@ -1,6 +1,5 @@
 import { createClient } from "../../../supabase/server";
 import { redirect } from "next/navigation";
-import DashboardNavbar from "@/components/dashboard-navbar";
 import UserSettingsForm from "@/components/user-settings-form";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -34,7 +33,6 @@ export default async function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DashboardNavbar />
       <main className="w-full">
         <div className="container mx-auto px-4 py-8 max-w-4xl">
           <header className="mb-8">
