@@ -27,12 +27,13 @@ export default function Navbar() {
     // Set up auth state change listener
     const { data: { subscription } } = createClient().auth.onAuthStateChange(async (event, session) => {
       setUser(session?.user ?? null);
+      setLoading(false);
     });
     
     return () => {
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [pathname]); // Add pathname to dependency array
   
   if (loading) {
     return (
