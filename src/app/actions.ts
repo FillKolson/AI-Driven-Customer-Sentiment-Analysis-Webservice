@@ -98,16 +98,31 @@ export const signInAction = async (formData: FormData) => {
   const password = formData.get("password") as string;
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { error, data } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
   if (error) {
-    return encodedRedirect("error", "/sign-in", error.message);
+    // Return error object instead of redirecting
+    return { 
+      error: { 
+        message: error.message || 'Invalid email or password' 
+      } 
+    };
   }
 
-  return redirect("/dashboard");
+  if (!data.user?.email_confirmed_at) {
+    return { 
+      error: { 
+        message: 'Please verify your email before signing in' 
+      } 
+    };
+  }
+
+  // If we get here, sign in was successful
+  redirect("/dashboard");
+  return null; // This line won't be reached due to the redirect
 };
 
 export const forgotPasswordAction = async (formData: FormData) => {

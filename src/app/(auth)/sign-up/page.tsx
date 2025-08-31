@@ -1,6 +1,6 @@
 "use client";
 
-import { FormMessage, Message } from "@/components/form-message";
+import { FormMessage } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,43 +9,94 @@ import { SmtpMessage } from "../smtp-message";
 import { signUpAction } from "@/app/actions";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { cn } from "@/lib/utils";
 
-function SignupForm({ initialMessage }: { initialMessage?: Message }) {
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+interface ServerResponse {
+  message: string;
+  field?: string;
+  type?: 'error' | 'success';
+}
+
+const formSchema = z.object({
+  full_name: z.string().min(1, "Full name is required"),
+  email: z.string().min(1, "Email is required").email("Enter a valid email"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+function SignupForm() {
+  const [serverError, setServerError] = useState<ServerResponse | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    setError: setFormError,
+    clearErrors,
+  } = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    mode: "onChange",
+  });
 
   // Handle initial message from URL params
   useEffect(() => {
     const message = searchParams?.get('message');
     const type = searchParams?.get('type');
     if (message && type) {
-      setError(type === 'error' ? message : null);
+      setServerError({
+        message,
+        type: type as 'error' | 'success',
+      });
     }
   }, [searchParams]);
 
-  const handleSubmit = async (formData: FormData) => {
-    const password = formData.get("password") as string;
-    const confirmPassword = formData.get("confirmPassword") as string;
+  const onSubmit = async (data: z.infer<typeof formSchema>) => {
+    clearErrors();
+    setServerError(null);
+    setIsSubmitting(true);
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-    
-    setIsLoading(true);
-    setError(null);
+    const formData = new FormData();
+    formData.append('full_name', data.full_name);
+    formData.append('email', data.email);
+    formData.append('password', data.password);
+    formData.append('confirmPassword', data.confirmPassword);
     
     try {
       const result = await signUpAction(formData);
       if (result) {
         router.push(result);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred during sign up');
+    } catch (error) {
+      if (error && typeof error === 'object' && 'message' in error) {
+        const err = error as ServerResponse;
+        setServerError({
+          message: err.message,
+          type: 'error',
+        });
+        
+        if (err.field) {
+          setFormError(err.field as keyof z.infer<typeof formSchema>, {
+            type: "server",
+            message: err.message,
+          });
+        }
+      } else {
+        setServerError({
+          message: 'An error occurred during sign up',
+          type: 'error',
+        });
+      }
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -53,7 +104,7 @@ function SignupForm({ initialMessage }: { initialMessage?: Message }) {
     <>
       <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-8">
         <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-sm">
-          <form action={handleSubmit} className="flex flex-col space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col space-y-6" noValidate>
             <div className="space-y-2 text-center">
               <h1 className="text-3xl font-semibold tracking-tight">Sign up</h1>
               <p className="text-sm text-muted-foreground">
@@ -74,12 +125,16 @@ function SignupForm({ initialMessage }: { initialMessage?: Message }) {
                 </Label>
                 <Input
                   id="full_name"
-                  name="full_name"
                   type="text"
                   placeholder="John Doe"
-                  required
-                  className="w-full"
+                  className={cn("w-full", errors.full_name && "border-destructive")}
+                  {...register("full_name")}
                 />
+                {errors.full_name && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.full_name.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -88,12 +143,16 @@ function SignupForm({ initialMessage }: { initialMessage?: Message }) {
                 </Label>
                 <Input
                   id="email"
-                  name="email"
                   type="email"
                   placeholder="you@example.com"
-                  required
-                  className="w-full"
+                  className={cn("w-full", errors.email && "border-destructive")}
+                  {...register("email")}
                 />
+                {errors.email && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.email.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -103,12 +162,15 @@ function SignupForm({ initialMessage }: { initialMessage?: Message }) {
                 <Input
                   id="password"
                   type="password"
-                  name="password"
                   placeholder="Your password"
-                  minLength={8}
-                  required
-                  className="w-full"
+                  className={cn("w-full", errors.password && "border-destructive")}
+                  {...register("password")}
                 />
+                {errors.password && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.password.message}
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   Password must be at least 8 characters long and include uppercase, lowercase, number, and special character.
                 </p>
@@ -121,32 +183,32 @@ function SignupForm({ initialMessage }: { initialMessage?: Message }) {
                 <Input
                   id="confirmPassword"
                   type="password"
-                  name="confirmPassword"
                   placeholder="Confirm your password"
-                  minLength={8}
-                  required
-                  className="w-full"
+                  className={cn("w-full", errors.confirmPassword && "border-destructive")}
+                  {...register("confirmPassword")}
                 />
+                {errors.confirmPassword && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.confirmPassword.message}
+                  </p>
+                )}
               </div>
               
             </div>
 
             <SubmitButton
-              type="submit"
-              pendingText="Signing up..."
               className="w-full"
-              disabled={isLoading}
+              pendingText="Creating account..."
+              disabled={isSubmitting}
             >
               Sign up
             </SubmitButton>
 
-            {error && (
-              <div className="text-sm text-red-500 text-center mt-2">
-                {error}
+            {serverError?.message && !serverError.field && (
+              <div className="mt-4">
+                <FormMessage message={serverError} />
               </div>
             )}
-            
-            {initialMessage && <FormMessage message={initialMessage} />}
           </form>
         </div>
         <SmtpMessage />
@@ -155,24 +217,6 @@ function SignupForm({ initialMessage }: { initialMessage?: Message }) {
   );
 }
 
-export default async function Signup({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | string[] | undefined };
-}) {
-  // Handle server-side message if present
-  if (searchParams?.message && searchParams?.type) {
-    return (
-      <div className="flex h-screen w-full flex-1 items-center justify-center p-4 sm:max-w-md">
-        <FormMessage 
-          message={{
-            message: searchParams.message as string,
-            type: searchParams.type as 'success' | 'error' | 'warning' | 'info'
-          }} 
-        />
-      </div>
-    );
-  }
-
+export default function Signup() {
   return <SignupForm />;
 }
