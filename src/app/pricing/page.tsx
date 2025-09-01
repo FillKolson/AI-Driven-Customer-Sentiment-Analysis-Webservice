@@ -15,15 +15,21 @@ export default async function Pricing() {
                 <div className="container mx-auto px-4 py-16">
                     <div className="text-center mb-16">
                         <h1 className="text-4xl font-bold mb-4">Simple, transparent pricing</h1>
-                        <p className="text-xl text-muted-foreground">
-                            Choose the perfect plan for your needs
+                        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+                            Choose the perfect plan for your needs. Start free and upgrade as you grow.
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
                         {plans?.map((item: any) => (
                             <PricingCard key={item.price_id} item={item} user={user} />
                         ))}
+                    </div>
+                    
+                    <div className="text-center mt-16">
+                        <p className="text-gray-600 text-sm">
+                            All plans include secure data handling and 99.9% uptime guarantee.
+                        </p>
                     </div>
                 </div>
             </main>

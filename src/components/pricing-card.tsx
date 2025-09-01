@@ -7,8 +7,10 @@ import {
     CardDescription,
     CardFooter,
     CardHeader,
-    CardTitle
+    CardTitle,
+    CardContent
 } from "./ui/card";
+import { Check } from "lucide-react";
 import { supabase } from "../../supabase/supabase";
 
 export default function PricingCard({ item, user }: {
@@ -22,7 +24,6 @@ export default function PricingCard({ item, user }: {
             window.location.href = "/sign-in?redirect=pricing";
             return;
         }
-
 
         try {
             const { data, error } = await supabase.functions.invoke('supabase-functions-create-checkout', {
@@ -51,8 +52,10 @@ export default function PricingCard({ item, user }: {
         }
     };
 
+    const isFreePlan = item.amount === 0 || item.amount === null;
+
     return (
-        <Card className={`w-[350px] relative overflow-hidden ${item.popular ? 'border-2 border-blue-500 shadow-xl scale-105' : 'border border-gray-200'}`}>
+        <Card className={`w-full relative overflow-hidden ${item.popular ? 'border-2 border-blue-500 shadow-xl scale-105' : 'border border-gray-200'}`}>
             {item.popular && (
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50 opacity-30" />
             )}
@@ -63,19 +66,42 @@ export default function PricingCard({ item, user }: {
                     </div>
                 )}
                 <CardTitle className="text-2xl font-bold tracking-tight text-gray-900">{item.name}</CardTitle>
-                <CardDescription className="flex items-baseline gap-2 mt-2">
-                    <span className="text-4xl font-bold text-gray-900">${item?.amount / 100}</span>
-                    <span className="text-gray-600">/{item?.interval}</span>
+                <CardDescription className="text-gray-600 mt-2">
+                    {item.description}
                 </CardDescription>
+                <div className="flex items-baseline gap-2 mt-4">
+                    <span className="text-4xl font-bold text-gray-900">
+                        {isFreePlan ? 'Free' : `$${item?.amount / 100}`}
+                    </span>
+                    {!isFreePlan && (
+                        <span className="text-gray-600">/{item?.interval}</span>
+                    )}
+                </div>
             </CardHeader>
+            
+            <CardContent className="relative">
+                <ul className="space-y-3">
+                    {item.features?.map((feature: string, index: number) => (
+                        <li key={index} className="flex items-start gap-3">
+                            <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                            <span className="text-sm text-gray-700">{feature}</span>
+                        </li>
+                    ))}
+                </ul>
+            </CardContent>
+            
             <CardFooter className="relative">
                 <Button
                     onClick={async () => {
                         await handleCheckout(item.price_id)
                     }}
-                    className={`w-full py-6 text-lg font-medium`}
+                    className={`w-full py-6 text-lg font-medium ${
+                        item.popular 
+                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700' 
+                            : 'bg-gray-900 hover:bg-gray-800'
+                    }`}
                 >
-                    Get Started
+                    {isFreePlan ? 'Get Started Free' : 'Get Started'}
                 </Button>
             </CardFooter>
         </Card>
