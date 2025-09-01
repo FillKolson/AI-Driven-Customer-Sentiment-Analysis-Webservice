@@ -96,6 +96,7 @@ export const signUpAction = async (formData: FormData) => {
 export const signInAction = async (formData: FormData) => {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  const redirectTo = formData.get("redirect") as string | null;
   const supabase = await createClient();
 
   const { error, data } = await supabase.auth.signInWithPassword({
@@ -121,7 +122,8 @@ export const signInAction = async (formData: FormData) => {
   }
 
   // If we get here, sign in was successful
-  redirect("/dashboard");
+  // Redirect to the specified URL or default to dashboard
+  redirect(redirectTo || "/dashboard");
   return null; // This line won't be reached due to the redirect
 };
 

@@ -32,9 +32,14 @@ const formSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-export default function SignInPage() {
+export default function SignInPage({
+  searchParams,
+}: {
+  searchParams?: { [key: string]: string | string[] | undefined };
+}) {
   const [serverError, setServerError] = useState<ServerResponse | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const redirectTo = searchParams?.redirect as string || '/dashboard';
   
   const {
     register,
@@ -55,6 +60,9 @@ export default function SignInPage() {
     const formData = new FormData();
     formData.append('email', data.email);
     formData.append('password', data.password);
+    if (redirectTo) {
+      formData.append('redirect', redirectTo);
+    }
 
     try {
       const result = await signInAction(formData);
