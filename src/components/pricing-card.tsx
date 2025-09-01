@@ -13,9 +13,10 @@ import {
 import { Check } from "lucide-react";
 import { supabase } from "../../supabase/supabase";
 
-export default function PricingCard({ item, user }: {
+export default function PricingCard({ item, user, currentSubscription }: {
     item: any,
-    user: User | null
+    user: User | null,
+    currentSubscription?: any
 }) {
     // Handle checkout process
     const handleCheckout = async (priceId: string) => {
@@ -53,6 +54,30 @@ export default function PricingCard({ item, user }: {
     };
 
     const isFreePlan = item.amount === 0 || item.amount === null;
+    
+    // Check if this is the user's current plan
+    const isCurrentPlan = currentSubscription && 
+        (currentSubscription.plan === item.price_id || 
+         (isFreePlan && currentSubscription.status === 'none'));
+
+    // Determine button text based on plan name
+    const getButtonText = () => {
+        if (isCurrentPlan) {
+            return "Your current plan";
+        }
+        
+        const planName = item.name.toLowerCase();
+        if (planName.includes('free')) {
+            return "Get Free";
+        } else if (planName.includes('pro')) {
+            return "Get Pro";
+        } else if (planName.includes('enterprise')) {
+            return "Get Enterprise";
+        } else {
+            // Fallback to plan name or generic text
+            return `Get ${item.name}`;
+        }
+    };
 
     return (
         <Card className={`w-full relative overflow-hidden ${item.popular ? 'border-2 border-blue-500 shadow-xl scale-105' : 'border border-gray-200'}`}>
@@ -93,15 +118,20 @@ export default function PricingCard({ item, user }: {
             <CardFooter className="relative">
                 <Button
                     onClick={async () => {
-                        await handleCheckout(item.price_id)
+                        if (!isCurrentPlan) {
+                            await handleCheckout(item.price_id)
+                        }
                     }}
+                    disabled={isCurrentPlan}
                     className={`w-full py-6 text-lg font-medium ${
-                        item.popular 
-                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700' 
-                            : 'bg-gray-900 hover:bg-gray-800'
+                        isCurrentPlan 
+                            ? 'bg-gray-400 text-gray-600 cursor-not-allowed hover:bg-gray-400' 
+                            : item.popular 
+                                ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700' 
+                                : 'bg-gray-900 hover:bg-gray-800'
                     }`}
                 >
-                    {isFreePlan ? 'Get Started Free' : 'Get Started'}
+                    {getButtonText()}
                 </Button>
             </CardFooter>
         </Card>

@@ -8,6 +8,19 @@ export default async function Pricing() {
 
     const { data: plans, error } = await supabase.functions.invoke('supabase-functions-get-plans');
 
+    // Fetch user's current subscription status if user is logged in
+    let currentSubscription = null;
+    if (user) {
+        try {
+            const { data: subscriptionData } = await supabase.functions.invoke('supabase-functions-get-subscription-status', {
+                body: { user_id: user.id }
+            });
+            currentSubscription = subscriptionData;
+        } catch (error) {
+            console.error('Error fetching subscription status:', error);
+        }
+    }
+
     return (
         <div className="flex flex-col min-h-screen">
             {/* Контент страницы */}
@@ -22,7 +35,12 @@ export default async function Pricing() {
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
                         {plans?.map((item: any) => (
-                            <PricingCard key={item.price_id} item={item} user={user} />
+                            <PricingCard 
+                                key={item.price_id} 
+                                item={item} 
+                                user={user} 
+                                currentSubscription={currentSubscription}
+                            />
                         ))}
                     </div>
                     
