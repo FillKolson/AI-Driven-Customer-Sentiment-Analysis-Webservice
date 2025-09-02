@@ -2,35 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  Search,
-  Filter,
-  ArrowLeft,
-  Download,
-  Calendar,
-  RefreshCw,
-} from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/components/ui/use-toast";
 import { Toaster } from "@/components/ui/toaster";
@@ -43,6 +15,7 @@ import {
   SelectTrigger as UiSelectTrigger,
   SelectValue as UiSelectValue,
 } from "@/components/ui/select";
+import { ArrowLeft } from "lucide-react";
 import { Trash2 } from "lucide-react";
 
 interface Analysis {
@@ -60,72 +33,14 @@ interface Analysis {
   analysis_type?: string;
 }
 
-interface PaginationInfo {
-  page: number;
-  limit: number;
-  total: number;
-  total_pages: number;
-}
-
 export default function HistoryPage() {
-  const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [allAnalyses, setAllAnalyses] = useState<Analysis[]>([]);
-  const [pagination, setPagination] = useState<PaginationInfo>({
-    page: 1,
-    limit: 20,
-    total: 0,
-    total_pages: 0,
-  });
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sentimentFilter, setSentimentFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("date");
-  const [sortOrder, setSortOrder] = useState("desc");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [downloading, setDownloading] = useState(false);
-  const [showDateFilter, setShowDateFilter] = useState(false);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
   const { toast } = useToast();
   // Dataset deletion state
   const [datasets, setDatasets] = useState<string[]>([]);
   const [selectedDataset, setSelectedDataset] = useState<string>("");
   const [deleting, setDeleting] = useState(false);
-
-  const fetchAnalyses = async (page: number = 1) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: "20",
-        sort_by: sortBy,
-        sort_order: sortOrder,
-      });
-
-      if (sentimentFilter !== "all") {
-        params.append("sentiment", sentimentFilter);
-      }
-      
-      if (dateFrom) {
-        params.append("date_from", dateFrom);
-      }
-      
-      if (dateTo) {
-        params.append("date_to", dateTo);
-      }
-
-      const response = await fetch(`/api/sentiment/history?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setAnalyses(data.analyses || []);
-        setPagination(data.pagination);
-      }
-    } catch (error) {
-      console.error("Error fetching analyses:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchAllAnalyses = async () => {
     try {
@@ -136,14 +51,15 @@ export default function HistoryPage() {
       }
     } catch (error) {
       console.error("Error fetching all analyses:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAnalyses(currentPage);
     fetchAllAnalyses();
     fetchDatasets();
-  }, [currentPage]);
+  }, []);
 
   // Auto-refresh data every 30 seconds to catch new analyses
   useEffect(() => {
@@ -153,55 +69,6 @@ export default function HistoryPage() {
 
     return () => clearInterval(interval);
   }, []);
-
-  const getSentimentIcon = (sentiment: string) => {
-    switch (sentiment) {
-      case "positive":
-        return <TrendingUp className="w-4 h-4 text-green-600" />;
-      case "negative":
-        return <TrendingDown className="w-4 h-4 text-red-600" />;
-      default:
-        return <Minus className="w-4 h-4 text-gray-600" />;
-    }
-  };
-
-  const getSentimentColor = (sentiment: string) => {
-    switch (sentiment) {
-      case "positive":
-        return "bg-green-100 text-green-800 border-green-200";
-      case "negative":
-        return "bg-red-100 text-red-800 border-red-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
-    }
-  };
-
-  const truncateText = (text: string | null | undefined, maxLength: number = 100) => {
-    if (!text) return "";
-    return text.length > maxLength
-      ? text.substring(0, maxLength) + "..."
-      : text;
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const handleRefresh = async () => {
-    await fetchAnalyses(currentPage);
-    await fetchAllAnalyses();
-    await fetchDatasets();
-    toast({
-      title: "Data Refreshed",
-      description: "Analysis history has been updated",
-    });
-  };
 
   const fetchDatasets = async () => {
     try {
@@ -235,7 +102,6 @@ export default function HistoryPage() {
       if (res.ok) {
         toast({ title: 'Dataset deleted', description: data.message || `Removed "${selectedDataset}"` });
         // refresh everything
-        await fetchAnalyses(currentPage);
         await fetchAllAnalyses();
         await fetchDatasets();
         setSelectedDataset("");
@@ -249,81 +115,6 @@ export default function HistoryPage() {
       setDeleting(false);
     }
   };
-
-  const handleDownloadCSV = async () => {
-    setDownloading(true);
-    try {
-      const params = new URLSearchParams();
-      
-      if (sentimentFilter !== "all") {
-        params.append("sentiment", sentimentFilter);
-      }
-      
-      if (dateFrom) {
-        params.append("date_from", dateFrom);
-      }
-      
-      if (dateTo) {
-        params.append("date_to", dateTo);
-      }
-
-      const response = await fetch(`/api/sentiment/history/download?${params}`);
-      
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        
-        // Create filename with filters
-        let filename = `sentiment-analysis-history-${new Date().toISOString().split('T')[0]}`;
-        if (sentimentFilter !== "all") {
-          filename += `-${sentimentFilter}`;
-        }
-        if (dateFrom || dateTo) {
-          filename += "-filtered";
-        }
-        filename += ".csv";
-        
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        toast({
-          title: "Download Successful",
-          description: "Your sentiment analysis history has been downloaded as CSV",
-        });
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        toast({
-          title: "Download Failed",
-          description: errorData.error || "Failed to download CSV file",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Error downloading CSV:", error);
-      toast({
-        title: "Download Failed",
-        description: "An error occurred while downloading the CSV file",
-        variant: "destructive",
-      });
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  const filteredAnalyses = analyses.filter(
-    (analysis) =>
-      searchTerm === "" ||
-      analysis.input_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      analysis.sentiment_result.key_phrases.some((phrase) =>
-        phrase.toLowerCase().includes(searchTerm.toLowerCase()),
-      ) ||
-      (analysis.file_name && analysis.file_name.toLowerCase().includes(searchTerm.toLowerCase())),
-  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -339,10 +130,10 @@ export default function HistoryPage() {
           </Link>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              Analysis History
+              Data Visualization
             </h1>
             <p className="text-gray-600 mt-1">
-              View and search your past sentiment analyses
+              View and search your past data
             </p>
           </div>
         </div>
@@ -386,367 +177,6 @@ export default function HistoryPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white">
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-              <CardTitle>All Analyses ({pagination.total})</CardTitle>
-
-              {/* Filters */}
-              <div className="flex gap-2 w-full sm:w-auto">
-                <div className="relative flex-1 sm:w-64">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder="Search analyses..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Select
-                  value={sentimentFilter}
-                  onValueChange={setSentimentFilter}
-                >
-                  <SelectTrigger className="w-32">
-                    <Filter className="w-4 h-4 mr-2" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="positive">Positive</SelectItem>
-                    <SelectItem value="negative">Negative</SelectItem>
-                    <SelectItem value="neutral">Neutral</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={sortBy}
-                  onValueChange={setSortBy}
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="date">Date</SelectItem>
-                    <SelectItem value="file_name">File Name</SelectItem>
-                    <SelectItem value="sentiment">Sentiment</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={sortOrder}
-                  onValueChange={setSortOrder}
-                >
-                  <SelectTrigger className="w-20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="desc">↓</SelectItem>
-                    <SelectItem value="asc">↑</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  onClick={() => setShowDateFilter(!showDateFilter)}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Date Filter
-                </Button>
-                <Button
-                  onClick={handleRefresh}
-                  variant="outline"
-                  size="sm"
-                  title="Refresh data to see latest analyses"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Refresh
-                </Button>
-                <Button
-                  onClick={handleDownloadCSV}
-                  disabled={downloading || pagination.total === 0}
-                  variant="outline"
-                  size="sm"
-                  title={
-                    sentimentFilter !== "all" || dateFrom || dateTo
-                      ? `Download filtered data (${sentimentFilter !== "all" ? sentimentFilter : "all sentiments"}${dateFrom || dateTo ? ", date filtered" : ""})`
-                      : "Download all sentiment analysis history"
-                  }
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  {downloading ? "Downloading..." : "Download CSV"}
-                </Button>
-              </div>
-            </div>
-            
-            {/* Date Filter Section */}
-            {showDateFilter && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      From Date
-                    </label>
-                    <Input
-                      type="date"
-                      value={dateFrom}
-                      onChange={(e) => setDateFrom(e.target.value)}
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      To Date
-                    </label>
-                    <Input
-                      type="date"
-                      value={dateTo}
-                      onChange={(e) => setDateTo(e.target.value)}
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <Button
-                      onClick={() => {
-                        setDateFrom("");
-                        setDateTo("");
-                      }}
-                      variant="ghost"
-                      size="sm"
-                    >
-                      Clear Dates
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardHeader>
-
-          <CardContent>
-            {loading ? (
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="animate-pulse">
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                  </div>
-                ))}
-              </div>
-            ) : filteredAnalyses.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                <p>No analyses found</p>
-                <p className="text-sm mt-1">
-                  {searchTerm || sentimentFilter !== "all"
-                    ? "Try adjusting your filters"
-                    : "Start by analyzing some text"}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Desktop Table */}
-                <div className="hidden md:block">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Text</TableHead>
-                        <TableHead>File Name</TableHead>
-                        <TableHead>Sentiment</TableHead>
-                        <TableHead>Confidence</TableHead>
-                        <TableHead>Key Phrases</TableHead>
-                        <TableHead>Date</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredAnalyses.map((analysis) => (
-                        <TableRow key={analysis.id}>
-                          <TableCell className="max-w-xs">
-                            <p className="text-sm">
-                              {truncateText(analysis.input_text, 80)}
-                            </p>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm text-gray-600">
-                              {analysis.file_name || "Single Analysis"}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {analysis.sentiment_result ? (
-                                <>
-                                  {getSentimentIcon(
-                                    analysis.sentiment_result.sentiment,
-                                  )}
-                                  <Badge
-                                    variant="outline"
-                                    className={`${getSentimentColor(analysis.sentiment_result.sentiment)} text-xs`}
-                                  >
-                                    {analysis.sentiment_result.sentiment}
-                                  </Badge>
-                                </>
-                              ) : (
-                                <Badge variant="outline" className="text-xs bg-gray-100 text-gray-500">
-                                  Processing...
-                                </Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm">
-                              {analysis.sentiment_result ? (
-                                <>
-                                  {Math.round(
-                                    analysis.sentiment_result.confidence * 100,
-                                  )}
-                                  %
-                                </>
-                              ) : (
-                                <span className="text-gray-500">-</span>
-                              )}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1 max-w-xs">
-                              {analysis.sentiment_result?.key_phrases ? (
-                                <>
-                                  {analysis.sentiment_result.key_phrases
-                                    .slice(0, 3)
-                                    .map((phrase, index) => (
-                                      <Badge
-                                        key={index}
-                                        variant="secondary"
-                                        className="text-xs"
-                                      >
-                                        {phrase}
-                                      </Badge>
-                                    ))}
-                                  {analysis.sentiment_result.key_phrases.length >
-                                    3 && (
-                                    <span className="text-xs text-gray-500">
-                                      +
-                                      {analysis.sentiment_result.key_phrases
-                                        .length - 3}
-                                    </span>
-                                  )}
-                                </>
-                              ) : (
-                                <span className="text-xs text-gray-500">No key phrases</span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm text-gray-600">
-                              {formatDate(analysis.created_at)}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                {/* Mobile Cards */}
-                <div className="md:hidden space-y-4">
-                  {filteredAnalyses.map((analysis) => (
-                    <Card key={analysis.id} className="p-4">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500 font-medium">
-                            {analysis.file_name || "Single Analysis"}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {formatDate(analysis.created_at)}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-900">
-                          {truncateText(analysis.input_text, 120)}
-                        </p>
-
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            {analysis.sentiment_result ? (
-                              <>
-                                {getSentimentIcon(
-                                  analysis.sentiment_result.sentiment,
-                                )}
-                                <Badge
-                                  variant="outline"
-                                  className={`${getSentimentColor(analysis.sentiment_result.sentiment)} text-xs`}
-                                >
-                                  {analysis.sentiment_result.sentiment}
-                                </Badge>
-                                <span className="text-xs text-gray-500">
-                                  {Math.round(
-                                    analysis.sentiment_result.confidence * 100,
-                                  )}
-                                  %
-                                </span>
-                              </>
-                            ) : (
-                              <Badge variant="outline" className="text-xs bg-gray-100 text-gray-500">
-                                Processing...
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-
-                        {analysis.sentiment_result?.key_phrases?.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {analysis.sentiment_result.key_phrases
-                              .slice(0, 4)
-                              .map((phrase, index) => (
-                                <Badge
-                                  key={index}
-                                  variant="secondary"
-                                  className="text-xs"
-                                >
-                                  {phrase}
-                                </Badge>
-                              ))}
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-
-                {/* Pagination */}
-                {pagination.total_pages > 1 && (
-                  <div className="flex items-center justify-between pt-4 border-t">
-                    <div className="text-sm text-gray-600">
-                      Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-                      {Math.min(
-                        pagination.page * pagination.limit,
-                        pagination.total,
-                      )}{" "}
-                      of {pagination.total} results
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          setCurrentPage(Math.max(1, currentPage - 1))
-                        }
-                        disabled={currentPage === 1}
-                      >
-                        Previous
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          setCurrentPage(
-                            Math.min(pagination.total_pages, currentPage + 1),
-                          )
-                        }
-                        disabled={currentPage === pagination.total_pages}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </main>
     </div>
   );
