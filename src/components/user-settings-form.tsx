@@ -317,11 +317,11 @@ export default function UserSettingsForm({
                     <span>Manage</span>
                   )}
                 </Button>
-                <Badge
-                  className={getPlanBadgeColor(subscription?.plan_name || "none")}
+                <span 
+                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPlanBadgeColor(subscription?.plan_name || "none")}`}
                 >
                   {(subscription?.plan_name || "none").toUpperCase()}
-                </Badge>
+                </span>
               </div>
             </div>
 
