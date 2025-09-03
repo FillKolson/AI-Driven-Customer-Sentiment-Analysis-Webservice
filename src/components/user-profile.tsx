@@ -37,6 +37,7 @@ export default function UserProfile() {
                 onClick={async () => {
                   await supabase.auth.signOut();
                   router.push("/");
+                  router.refresh();
                 }}
                 className="flex items-center gap-2 text-red-600"
               >
