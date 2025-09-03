@@ -23,7 +23,15 @@ interface ServerResponse {
 const formSchema = z.object({
   full_name: z.string().min(1, "Full name is required"),
   email: z.string().min(1, "Email is required").email("Enter a valid email"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .max(100, "Password must be at most 100 characters")
+    .regex(/^[\x20-\x7E]+$/, "Password contains invalid characters. Only standard ASCII characters are allowed.")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter (A-Z)")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter (a-z)")
+    .regex(/[0-9]/, "Password must contain at least one number (0-9)")
+    .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character (e.g., !@#$%^&*)")
+    .refine(val => !/\s/.test(val), "Password cannot contain spaces"),
   confirmPassword: z.string().min(1, "Please confirm your password"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -172,7 +180,16 @@ function SignupForm() {
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Password must be at least 8 characters long and include uppercase, lowercase, number, and special character.
+                  Password requirements:
+                  <ul className="list-disc list-inside space-y-0.5 mt-1">
+                    <li>8-100 characters</li>
+                    <li>At least one uppercase letter (A-Z)</li>
+                    <li>At least one lowercase letter (a-z)</li>
+                    <li>At least one number (0-9)</li>
+                    <li>At least one special character (!@#$%^&*, etc.)</li>
+                    <li>No spaces</li>
+                    <li>Only standard ASCII characters allowed</li>
+                  </ul>
                 </p>
               </div>
 
