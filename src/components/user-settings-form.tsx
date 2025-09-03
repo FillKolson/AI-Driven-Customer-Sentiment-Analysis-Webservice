@@ -47,6 +47,7 @@ export default function UserSettingsForm({
 }: UserSettingsFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [preferencesLoading, setPreferencesLoading] = useState(true);
+  const [errors, setErrors] = useState<{full_name?: string}>({});
   const [formData, setFormData] = useState({
     full_name: user.full_name,
     email: user.email,
@@ -86,8 +87,22 @@ export default function UserSettingsForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const validateForm = () => {
+    const newErrors: {full_name?: string} = {};
+    if (!formData.full_name.trim()) {
+      newErrors.full_name = 'Full name is required';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
@@ -204,11 +219,19 @@ export default function UserSettingsForm({
                 <Input
                   id="full_name"
                   value={formData.full_name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, full_name: e.target.value })
-                  }
-                  placeholder="Enter your full name"
+                  onChange={(e) => {
+                    setFormData({ ...formData, full_name: e.target.value });
+                    // Clear error when user starts typing
+                    if (errors.full_name) {
+                      setErrors({...errors, full_name: undefined});
+                    }
+                  }}
+                  disabled={isLoading}
+                  className={errors.full_name ? 'border-red-500' : ''}
                 />
+                {errors.full_name && (
+                  <p className="text-sm text-red-500 mt-1">{errors.full_name}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
