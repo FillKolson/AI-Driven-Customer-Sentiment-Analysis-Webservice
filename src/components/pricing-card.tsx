@@ -58,7 +58,7 @@ export default function PricingCard({ item, user, currentSubscription }: {
     // Check if this is the user's current plan
     const isCurrentPlan = currentSubscription && 
         (currentSubscription.plan === item.price_id || 
-         (isFreePlan && currentSubscription.status === 'none'));
+         (isFreePlan && currentSubscription.status === 'null'));
 
     // Determine button text based on plan name
     const getButtonText = () => {
