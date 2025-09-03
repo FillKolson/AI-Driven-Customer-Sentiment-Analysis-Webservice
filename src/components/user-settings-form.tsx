@@ -247,15 +247,21 @@ export default function UserSettingsForm({
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="bio">Bio (Optional)</Label>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="bio">Bio (Optional)</Label>
+                <span className="text-xs text-gray-500">
+                  {formData.bio.length}/100
+                </span>
+              </div>
               <Textarea
                 id="bio"
                 value={formData.bio}
                 onChange={(e) =>
-                  setFormData({ ...formData, bio: e.target.value })
+                  setFormData({ ...formData, bio: e.target.value.slice(0, 100) })
                 }
-                placeholder="Tell us about yourself"
+                placeholder="Tell us about yourself (max 100 characters)"
                 rows={3}
+                maxLength={100}
               />
             </div>
             <Button type="submit" disabled={isLoading}>
