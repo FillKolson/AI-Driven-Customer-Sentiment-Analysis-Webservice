@@ -152,11 +152,12 @@ export const forgotPasswordAction = async (formData: FormData) => {
     );
   }
 
-  return encodedRedirect(
-    "success",
-    "/forgot-password",
-    "Check your email for a link to reset your password.",
-  );
+  // Return success message that will be shown on the page
+  // The page will handle the display of this message
+  return { message: "Check your email for a link to reset your password." };
+  
+  // Note: We're not using the redirect here anymore since we want to show the success message
+  // The page component will handle the UI update
 };
 
 export const resetPasswordAction = async (formData: FormData) => {
