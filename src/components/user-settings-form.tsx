@@ -362,7 +362,7 @@ export default function UserSettingsForm({
                 <span className="text-sm text-red-600 font-semibold">API access is unavailable without a subscription.</span>
               ) : (
                 <span className="text-sm">
-                  {user.api_usage_current_month} / {user.api_limit_per_month}
+                  {typeof user.api_usage_current_month === 'number' ? user.api_usage_current_month : 0} / {user.api_limit_per_month}
                 </span>
               )}
             </div>
