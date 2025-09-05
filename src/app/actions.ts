@@ -232,20 +232,42 @@ export const resetPasswordAction = async (formData: FormData) => {
     }
   }
 
-  // Now update the password
-  const { error } = await supabase.auth.updateUser({
-    password: password,
-  });
+  try {
+    // First, try to sign in with the current password to check if it's the same
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user?.email) {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: password
+      });
 
-  if (error) {
-    return encodedRedirect(
-      "error",
-      "/reset-password",
-      "Password update failed",
-    );
+      // If sign in succeeds, the password is the same as current
+      if (!signInError) {
+        return {
+          error: "New password must be different from your current password"
+        };
+      }
+    }
+
+    // If we got here, the password is different, so update it
+    const { error } = await supabase.auth.updateUser({
+      password: password,
+    });
+
+    if (error) {
+      return {
+        error: error.message || "Password update failed"
+      };
+    }
+  } catch (error) {
+    console.error('Password update error:', error);
+    return {
+      error: "An error occurred while updating your password"
+    };
   }
 
-  return encodedRedirect("success", "/sign-in", "Password updated successfully. You can now sign in with your new password.");
+  return { success: true, message: "Password updated successfully. You can now sign in with your new password." };
 };
 
 export const changePasswordAction = async (formData: FormData) => {

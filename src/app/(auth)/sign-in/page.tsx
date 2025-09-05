@@ -76,11 +76,22 @@ export default function SignInPage({
           type: 'error',
         });
         
-        // Set the error on the password field for better UX
-        setError('password', {
-          type: 'manual',
-          message: errorMessage,
-        });
+        // Set the error on the appropriate field based on the error message
+        if (errorMessage.toLowerCase().includes('email') && 
+            (errorMessage.toLowerCase().includes('not confirmed') || 
+             errorMessage.toLowerCase().includes('invalid') ||
+             errorMessage.toLowerCase().includes('not found'))) {
+          setError('email', {
+            type: 'manual',
+            message: errorMessage,
+          });
+        } else {
+          // Default to password field for other errors
+          setError('password', {
+            type: 'manual',
+            message: errorMessage,
+          });
+        }
       }
     } catch (error) {
       // Handle any unexpected errors

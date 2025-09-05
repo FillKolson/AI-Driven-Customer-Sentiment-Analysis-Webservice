@@ -199,7 +199,7 @@ export default function UserSettingsForm({
   };
 
   return (
-    <div className="space-y-6 bg-white">
+    <div className="space-y-6">
       {/* Profile Information */}
       <Card>
         <CardHeader>

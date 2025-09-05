@@ -12,7 +12,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const isDashboard = pathname?.startsWith('/dashboard') || false;
+  const isDashboard = pathname === '/dashboard';
 
   useEffect(() => {
     const getUser = async () => {
