@@ -16,7 +16,7 @@ export interface SentimentResult {
 }
 
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
-const RATE_LIMIT = 100; // 100 requests per hour per user
+const RATE_LIMIT = 10000; // 10000 requests per hour per user
 
 function getCacheKey(userId: string, text: string) {
   return `${userId}:${text}`;

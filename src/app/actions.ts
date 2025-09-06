@@ -96,30 +96,53 @@ export const signUpAction = async (formData: FormData) => {
 export const signInAction = async (formData: FormData) => {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  const redirectTo = formData.get("redirect") as string | null;
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { error, data } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
   if (error) {
-    return encodedRedirect("error", "/sign-in", error.message);
+    // Return error object instead of redirecting
+    return { 
+      error: { 
+        message: error.message || 'Invalid email or password' 
+      } 
+    };
   }
 
-  return redirect("/dashboard");
+  if (!data.user?.email_confirmed_at) {
+    return { 
+      error: { 
+        message: 'Please verify your email before signing in' 
+      } 
+    };
+  }
+
+  // If we get here, sign in was successful
+  // Redirect to the specified URL or default to dashboard
+  redirect(redirectTo || "/dashboard");
+  return null; // This line won't be reached due to the redirect
 };
 
 export const forgotPasswordAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();
   const supabase = await createClient();
-  const callbackUrl = formData.get("callbackUrl")?.toString();
 
   if (!email) {
     return encodedRedirect("error", "/forgot-password", "Email is required");
   }
 
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {});
+  // Get the current origin for the redirect URL
+  // In production, this should be set to your actual domain
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const redirectUrl = `${origin}/reset-password`;
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: redirectUrl,
+  });
 
   if (error) {
     return encodedRedirect(
@@ -129,15 +152,12 @@ export const forgotPasswordAction = async (formData: FormData) => {
     );
   }
 
-  if (callbackUrl) {
-    return redirect(callbackUrl);
-  }
-
-  return encodedRedirect(
-    "success",
-    "/forgot-password",
-    "Check your email for a link to reset your password.",
-  );
+  // Return success message that will be shown on the page
+  // The page will handle the display of this message
+  return { message: "Check your email for a link to reset your password." };
+  
+  // Note: We're not using the redirect here anymore since we want to show the success message
+  // The page component will handle the UI update
 };
 
 export const resetPasswordAction = async (formData: FormData) => {
@@ -145,21 +165,165 @@ export const resetPasswordAction = async (formData: FormData) => {
 
   const password = formData.get("password") as string;
   const confirmPassword = formData.get("confirmPassword") as string;
+  const code = formData.get("code") as string;
+  const token = formData.get("token") as string;
+  const type = formData.get("type") as string;
 
   if (!password || !confirmPassword) {
-    encodedRedirect(
+    return encodedRedirect(
       "error",
-      "/protected/reset-password",
+      "/reset-password",
       "Password and confirm password are required",
     );
   }
 
   if (password !== confirmPassword) {
-    encodedRedirect(
+    return encodedRedirect(
+      "error",
+      "/reset-password",
+      "Passwords do not match",
+    );
+  }
+
+  // Modern password validation
+  const passwordRequirements = [
+    {
+      regex: /.{8,}/,
+      message: "Password must be at least 8 characters long."
+    },
+    {
+      regex: /[A-Z]/,
+      message: "Password must contain at least one uppercase letter."
+    },
+    {
+      regex: /[a-z]/,
+      message: "Password must contain at least one lowercase letter."
+    },
+    {
+      regex: /[0-9]/,
+      message: "Password must contain at least one digit."
+    },
+    {
+      regex: /[^A-Za-z0-9]/,
+      message: "Password must contain at least one special character."
+    }
+  ];
+
+  for (const req of passwordRequirements) {
+    if (!req.regex.test(password)) {
+      return encodedRedirect(
+        "error",
+        "/reset-password",
+        req.message
+      );
+    }
+  }
+
+  // If we have a recovery code, we need to exchange it for a session first
+  if (code && type === 'recovery') {
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+    
+    if (exchangeError) {
+      return encodedRedirect(
+        "error",
+        "/reset-password",
+        "Invalid or expired recovery link. Please request a new password reset.",
+      );
+    }
+  }
+
+  try {
+    // First, try to sign in with the current password to check if it's the same
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user?.email) {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: password
+      });
+
+      // If sign in succeeds, the password is the same as current
+      if (!signInError) {
+        return {
+          error: "New password must be different from your current password"
+        };
+      }
+    }
+
+    // If we got here, the password is different, so update it
+    const { error } = await supabase.auth.updateUser({
+      password: password,
+    });
+
+    if (error) {
+      return {
+        error: error.message || "Password update failed"
+      };
+    }
+  } catch (error) {
+    console.error('Password update error:', error);
+    return {
+      error: "An error occurred while updating your password"
+    };
+  }
+
+  return { success: true, message: "Password updated successfully. You can now sign in with your new password." };
+};
+
+export const changePasswordAction = async (formData: FormData) => {
+  const supabase = await createClient();
+
+  const password = formData.get("password") as string;
+  const confirmPassword = formData.get("confirmPassword") as string;
+
+  if (!password || !confirmPassword) {
+    return encodedRedirect(
+      "error",
+      "/dashboard/reset-password",
+      "Password and confirm password are required",
+    );
+  }
+
+  if (password !== confirmPassword) {
+    return encodedRedirect(
       "error",
       "/dashboard/reset-password",
       "Passwords do not match",
     );
+  }
+
+  // Modern password validation
+  const passwordRequirements = [
+    {
+      regex: /.{8,}/,
+      message: "Password must be at least 8 characters long."
+    },
+    {
+      regex: /[A-Z]/,
+      message: "Password must contain at least one uppercase letter."
+    },
+    {
+      regex: /[a-z]/,
+      message: "Password must contain at least one lowercase letter."
+    },
+    {
+      regex: /[0-9]/,
+      message: "Password must contain at least one digit."
+    },
+    {
+      regex: /[^A-Za-z0-9]/,
+      message: "Password must contain at least one special character."
+    }
+  ];
+
+  for (const req of passwordRequirements) {
+    if (!req.regex.test(password)) {
+      return encodedRedirect(
+        "error",
+        "/dashboard/reset-password",
+        req.message
+      );
+    }
   }
 
   const { error } = await supabase.auth.updateUser({
@@ -167,14 +331,14 @@ export const resetPasswordAction = async (formData: FormData) => {
   });
 
   if (error) {
-    encodedRedirect(
+    return encodedRedirect(
       "error",
       "/dashboard/reset-password",
       "Password update failed",
     );
   }
 
-  encodedRedirect("success", "/protected/reset-password", "Password updated");
+  return encodedRedirect("success", "/dashboard/reset-password", "Password updated successfully.");
 };
 
 export const signOutAction = async () => {

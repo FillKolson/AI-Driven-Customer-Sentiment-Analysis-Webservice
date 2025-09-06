@@ -33,13 +33,23 @@ export async function GET(request: NextRequest) {
     const dateFrom = searchParams.get("date_from");
     const dateTo = searchParams.get("date_to");
     const sentiment = searchParams.get("sentiment");
+    const sortBy = searchParams.get("sort_by") || "created_at";
+    const sortOrder = searchParams.get("sort_order") || "desc";
 
     // Build query for all analyses (no pagination)
     let query = supabase
       .from("sentiment_analyses")
       .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+      .eq("user_id", user.id);
+
+    // Apply sorting
+    if (sortBy === "file_name") {
+      query = query.order("file_name", { ascending: sortOrder === "asc" });
+    } else if (sortBy === "sentiment") {
+      query = query.order("sentiment_result->sentiment", { ascending: sortOrder === "asc" });
+    } else {
+      query = query.order("created_at", { ascending: sortOrder === "asc" });
+    }
 
     // Apply filters
     if (dateFrom) {

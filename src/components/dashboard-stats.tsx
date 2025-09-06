@@ -29,7 +29,7 @@ export default function DashboardStats({ userId }: DashboardStatsProps) {
         const response = await fetch("/api/analytics/dashboard?period=30d");
         if (response.ok) {
           const data = await response.json();
-          setAnalytics(data);
+          setAnalytics(data.analytics);
         }
       } catch (error) {
         console.error("Error fetching analytics:", error);

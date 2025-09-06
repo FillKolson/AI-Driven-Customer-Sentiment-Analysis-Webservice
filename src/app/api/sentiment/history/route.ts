@@ -35,6 +35,8 @@ export async function GET(request: NextRequest) {
     const dateFrom = searchParams.get("date_from");
     const dateTo = searchParams.get("date_to");
     const sentiment = searchParams.get("sentiment");
+    const sortBy = searchParams.get("sort_by") || "created_at";
+    const sortOrder = searchParams.get("sort_order") || "desc";
 
     const offset = (page - 1) * limit;
 
@@ -43,8 +45,16 @@ export async function GET(request: NextRequest) {
       .from("sentiment_analyses")
       .select("*", { count: "exact" })
       .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
+
+    // Apply sorting
+    if (sortBy === "file_name") {
+      query = query.order("file_name", { ascending: sortOrder === "asc" });
+    } else if (sortBy === "sentiment") {
+      query = query.order("sentiment_result->sentiment", { ascending: sortOrder === "asc" });
+    } else {
+      query = query.order("created_at", { ascending: sortOrder === "asc" });
+    }
 
     // Apply filters
     if (dateFrom) {

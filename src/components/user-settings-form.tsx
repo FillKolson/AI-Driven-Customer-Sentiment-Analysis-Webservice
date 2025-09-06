@@ -47,6 +47,7 @@ export default function UserSettingsForm({
 }: UserSettingsFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [preferencesLoading, setPreferencesLoading] = useState(true);
+  const [errors, setErrors] = useState<{full_name?: string}>({});
   const [formData, setFormData] = useState({
     full_name: user.full_name,
     email: user.email,
@@ -86,8 +87,22 @@ export default function UserSettingsForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const validateForm = () => {
+    const newErrors: {full_name?: string} = {};
+    if (!formData.full_name.trim()) {
+      newErrors.full_name = 'Full name is required';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
@@ -184,7 +199,7 @@ export default function UserSettingsForm({
   };
 
   return (
-    <div className="space-y-6 bg-white">
+    <div className="space-y-6">
       {/* Profile Information */}
       <Card>
         <CardHeader>
@@ -204,11 +219,19 @@ export default function UserSettingsForm({
                 <Input
                   id="full_name"
                   value={formData.full_name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, full_name: e.target.value })
-                  }
-                  placeholder="Enter your full name"
+                  onChange={(e) => {
+                    setFormData({ ...formData, full_name: e.target.value });
+                    // Clear error when user starts typing
+                    if (errors.full_name) {
+                      setErrors({...errors, full_name: undefined});
+                    }
+                  }}
+                  disabled={isLoading}
+                  className={errors.full_name ? 'border-red-500' : ''}
                 />
+                {errors.full_name && (
+                  <p className="text-sm text-red-500 mt-1">{errors.full_name}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
@@ -224,15 +247,21 @@ export default function UserSettingsForm({
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="bio">Bio (Optional)</Label>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="bio">Bio (Optional)</Label>
+                <span className="text-xs text-gray-500">
+                  {formData.bio.length}/100
+                </span>
+              </div>
               <Textarea
                 id="bio"
                 value={formData.bio}
                 onChange={(e) =>
-                  setFormData({ ...formData, bio: e.target.value })
+                  setFormData({ ...formData, bio: e.target.value.slice(0, 100) })
                 }
-                placeholder="Tell us about yourself"
+                placeholder="Tell us about yourself (max 100 characters)"
                 rows={3}
+                maxLength={100}
               />
             </div>
             <Button type="submit" disabled={isLoading}>
@@ -317,11 +346,11 @@ export default function UserSettingsForm({
                     <span>Manage</span>
                   )}
                 </Button>
-                <Badge
-                  className={getPlanBadgeColor(subscription?.plan_name || "none")}
+                <span 
+                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPlanBadgeColor(subscription?.plan_name || "none")}`}
                 >
                   {(subscription?.plan_name || "none").toUpperCase()}
-                </Badge>
+                </span>
               </div>
             </div>
 
@@ -333,7 +362,7 @@ export default function UserSettingsForm({
                 <span className="text-sm text-red-600 font-semibold">API access is unavailable without a subscription.</span>
               ) : (
                 <span className="text-sm">
-                  {user.api_usage_current_month} / {user.api_limit_per_month}
+                  {typeof user.api_usage_current_month === 'number' ? user.api_usage_current_month : 0} / {user.api_limit_per_month}
                 </span>
               )}
             </div>

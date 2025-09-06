@@ -1,5 +1,4 @@
 import Hero from "@/components/hero";
-import Navbar from "@/components/navbar";
 import PricingCard from "@/components/pricing-card";
 import Footer from "@/components/footer";
 import { createClient } from "../../supabase/server";
@@ -15,9 +14,21 @@ export default async function Home() {
     "supabase-functions-get-plans",
   );
 
+  // Fetch user's current subscription status if user is logged in
+  let currentSubscription = null;
+  if (user) {
+    try {
+      const { data: subscriptionData } = await supabase.functions.invoke('supabase-functions-get-subscription-status', {
+        body: { user_id: user.id }
+      });
+      currentSubscription = subscriptionData;
+    } catch (error) {
+      console.error('Error fetching subscription status:', error);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
-      <Navbar />
       <Hero />
 
       {/* Features Section */}
@@ -103,7 +114,12 @@ export default async function Home() {
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {plans?.map((item: any) => (
-              <PricingCard key={item.id} item={item} user={user} />
+              <PricingCard 
+                key={item.id} 
+                item={item} 
+                user={user} 
+                currentSubscription={currentSubscription}
+              />
             ))}
           </div>
         </div>

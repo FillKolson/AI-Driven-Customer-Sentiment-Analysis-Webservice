@@ -5,8 +5,10 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
-import { Loader2, Upload, FileText, AlertCircle, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, Upload, FileText, AlertCircle, CheckCircle, XCircle, Info } from "lucide-react";
 import { useToast } from "./ui/use-toast";
+import { parseCSVWithMetrics, validateCSVStructure, ParsedCSVRow } from "../lib/csvParser";
+import { SentimentResult } from "../app/api/sentiment/batch-status/types";
 
 interface FileUploadProps {
   userId: string;
@@ -20,6 +22,7 @@ interface ParsedText {
   id: string;
   text: string;
   lineNumber: number;
+  metrics?: any;
 }
 
 export default function FileUpload({
@@ -35,6 +38,9 @@ export default function FileUpload({
   const [parsedTexts, setParsedTexts] = useState<ParsedText[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [columnMapping, setColumnMapping] = useState<any>(null);
+  const [csvValidation, setCsvValidation] = useState<{ isValid: boolean; errors: string[]; warnings: string[] } | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -81,11 +87,11 @@ export default function FileUpload({
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (selectedFile.size > 5 * 1024 * 1024) {
+    // Validate file size (max 10MB)
+    if (selectedFile.size > 10 * 1024 * 1024) {
       toast({
         title: "File Too Large",
-        description: "Please upload a file smaller than 5MB",
+        description: "Please upload a file smaller than 10MB",
         variant: "destructive",
       });
       return;
@@ -101,39 +107,103 @@ export default function FileUpload({
 
     try {
       const text = await file.text();
-      const lines = text.split('\n').filter(line => line.trim().length > 0);
       
-      if (lines.length === 0) {
+      // Check if it's a CSV file
+      if (file.name.toLowerCase().endsWith('.csv')) {
+        // Parse CSV with metrics
+        const validation = validateCSVStructure(text);
+        setCsvValidation(validation);
+        
+        if (!validation.isValid) {
+          toast({
+            title: "CSV Validation Failed",
+            description: validation.errors.join(', '),
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        if (validation.warnings.length > 0) {
+          toast({
+            title: "CSV Warnings",
+            description: validation.warnings.join(', '),
+            variant: "default",
+          });
+        }
+        
+        const { rows, columnMapping: mapping } = parseCSVWithMetrics(text);
+        
+        if (rows.length === 0) {
+          toast({
+            title: "No Valid Data",
+            description: "The CSV contains no valid rows to analyze",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        if (rows.length > 10000) {
+          toast({
+            title: "Too Many Rows",
+            description: "Maximum 10000 rows per file. Please split your data into smaller files.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        const parsed: ParsedText[] = rows.map(row => ({
+          id: row.id,
+          text: row.text,
+          lineNumber: row.lineNumber,
+          metrics: row.metrics
+        }));
+        
+        setParsedTexts(parsed);
+        setColumnMapping(mapping);
+        setUploadProgress(100);
+        
         toast({
-          title: "Empty File",
-          description: "The file contains no valid text to analyze",
-          variant: "destructive",
+          title: "CSV Parsed Successfully",
+          description: `Found ${parsed.length} rows with ${Object.keys(mapping).length} detected columns`,
         });
-        return;
-      }
+        
+      } else {
+        // Parse as plain text (existing logic)
+        const lines = text.split('\n').filter(line => line.trim().length > 0);
+        
+        if (lines.length === 0) {
+          toast({
+            title: "Empty File",
+            description: "The file contains no valid text to analyze",
+            variant: "destructive",
+          });
+          return;
+        }
 
-      if (lines.length > 100) {
+        if (lines.length > 10000) {
+          toast({
+            title: "Too Many Lines",
+            description: "Maximum 10000 lines per file. Please split your data into smaller files.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const parsed: ParsedText[] = lines.map((line, index) => ({
+          id: `line_${index}`,
+          text: line.trim(),
+          lineNumber: index + 1,
+        }));
+
+        setParsedTexts(parsed);
+        setColumnMapping(null);
+        setUploadProgress(100);
+
         toast({
-          title: "Too Many Lines",
-          description: "Maximum 100 lines per file. Please split your data into smaller files.",
-          variant: "destructive",
+          title: "File Parsed Successfully",
+          description: `Found ${parsed.length} texts to analyze`,
         });
-        return;
       }
-
-      const parsed: ParsedText[] = lines.map((line, index) => ({
-        id: `line_${index}`,
-        text: line.trim(),
-        lineNumber: index + 1,
-      }));
-
-      setParsedTexts(parsed);
-      setUploadProgress(100);
-
-      toast({
-        title: "File Parsed Successfully",
-        description: `Found ${parsed.length} texts to analyze`,
-      });
 
     } catch (error) {
       console.error("Error parsing file:", error);
@@ -149,20 +219,12 @@ export default function FileUpload({
 
   const handleAnalyze = async () => {
     if (!parsedTexts.length) {
-      toast({
-        title: "No Texts to Analyze",
-        description: "Please upload a file first",
-        variant: "destructive",
-      });
+      toast({ title: "No Texts to Analyze", description: "Please upload a file first", variant: "destructive" });
       return;
     }
 
     if (currentUsage + parsedTexts.length > usageLimit) {
-      toast({
-        title: "Usage Limit Exceeded",
-        description: `This analysis would use ${parsedTexts.length} API calls, but you only have ${usageLimit - currentUsage} remaining.`,
-        variant: "destructive",
-      });
+      toast({ title: "Usage Limit Exceeded", description: `This analysis would use ${parsedTexts.length} API calls, but you only have ${usageLimit - currentUsage} remaining.`, variant: "destructive" });
       return;
     }
 
@@ -170,40 +232,53 @@ export default function FileUpload({
     setAnalysisProgress(0);
 
     try {
-      const texts = parsedTexts.map(item => item.text);
-      
-      const response = await fetch("/api/sentiment/batch-analyze", {
+      const texts = parsedTexts.map(item => item.metrics ? { text: item.text, metrics: item.metrics } : item.text);
+
+      const initialResponse = await fetch("/api/sentiment/batch-analyze", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ texts }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          texts,
+          file_name: file?.name || 'batch_analysis_' + new Date().toISOString()
+        }),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Batch analysis failed");
+      if (!initialResponse.ok) {
+        const error = await initialResponse.json();
+        throw new Error(error.error || "Failed to start batch analysis");
       }
 
-      const data = await response.json();
-      setAnalysisProgress(100);
+      const { jobId: newJobId } = await initialResponse.json();
+      setJobId(newJobId);
 
-      toast({
-        title: "Batch Analysis Complete",
-        description: `Successfully analyzed ${data.summary.successful} out of ${data.summary.total_processed} texts`,
-      });
+      const poll = async (jobIdToPoll: string) => {
+        const statusResponse = await fetch(`/api/sentiment/batch-status/${jobIdToPoll}`);
+        if (!statusResponse.ok) {
+          throw new Error('Failed to get job status');
+        }
 
-      onAnalysisComplete(data);
+        const statusData = await statusResponse.json();
+        setAnalysisProgress(statusData.progress || 0);
+
+        if (statusData.status === 'completed') {
+          toast({ title: "Batch Analysis Complete", description: `Successfully analyzed ${statusData.results.filter((r: SentimentResult) => !r.error).length} texts` });
+          onAnalysisComplete({ results: statusData.results, summary: statusData.summary });
+          setIsAnalyzing(false);
+          setJobId(null);
+        } else if (statusData.status === 'failed') {
+          throw new Error(statusData.error || 'Analysis job failed');
+        } else {
+          setTimeout(() => poll(jobIdToPoll), 2000);
+        }
+      };
+
+      setTimeout(() => poll(newJobId), 1000);
 
     } catch (error) {
       console.error("Batch analysis error:", error);
-      toast({
-        title: "Analysis Failed",
-        description: error instanceof Error ? error.message : "An error occurred",
-        variant: "destructive",
-      });
-    } finally {
+      toast({ title: "Analysis Failed", description: error instanceof Error ? error.message : "An error occurred", variant: "destructive" });
       setIsAnalyzing(false);
+      setJobId(null);
     }
   };
 
@@ -212,6 +287,8 @@ export default function FileUpload({
     setParsedTexts([]);
     setUploadProgress(0);
     setAnalysisProgress(0);
+    setColumnMapping(null);
+    setCsvValidation(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -262,7 +339,7 @@ export default function FileUpload({
                   {file ? file.name : "Click to upload or drag and drop"}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  CSV or TXT files up to 5MB, max 100 lines
+                  CSV or TXT files up to 10MB, max 10000 lines
                 </p>
               </div>
 
@@ -314,6 +391,39 @@ export default function FileUpload({
                 <p>Texts to analyze: {parsedTexts.length}</p>
                 <p>Estimated API calls: {parsedTexts.length}</p>
               </div>
+
+              {/* Column Mapping Info for CSV files */}
+              {columnMapping && (
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Info className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800">Detected Columns</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {Object.entries(columnMapping).map(([key, value]) => (
+                      <div key={key} className="flex justify-between">
+                        <span className="text-blue-700">{key.replace(/_/g, ' ')}:</span>
+                        <span className="text-blue-600 font-mono">Column {value as number}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* CSV Validation Warnings */}
+              {csvValidation && csvValidation.warnings.length > 0 && (
+                <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600" />
+                    <span className="text-sm font-medium text-amber-800">CSV Warnings</span>
+                  </div>
+                  <div className="text-xs text-amber-700">
+                    {csvValidation.warnings.map((warning, index) => (
+                      <p key={index}>• {warning}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Usage Warning */}
               {currentUsage + parsedTexts.length > usageLimit && (
