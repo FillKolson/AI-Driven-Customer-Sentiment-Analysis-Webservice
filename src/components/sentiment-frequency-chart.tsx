@@ -176,7 +176,7 @@ export default function SentimentFrequencyChart({ loading = false }: SentimentFr
     }
 
     return (
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+      <div className="mt-6 p-4 bg-white rounded-lg">
         <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Sentiment-Frequency Analysis</h4>
         <p className="text-sm text-gray-600 mb-3">
           Analysis of {insights.totalCustomers} customers with {data.summary.totalDataPoints} total sentiment data points

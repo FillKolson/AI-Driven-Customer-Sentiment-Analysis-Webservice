@@ -136,7 +136,7 @@ const DynamicPromotionProfitReview = ({ data }: { data: BranchData[] }) => {
   const { insights } = review;
 
   return (
-    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+    <div className="mt-6 p-4 bg-white rounded-lg">
       <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Promotion ROI Analysis</h4>
       <p className="text-sm text-gray-600 mb-3">
         Analysis based on {insights.totalBranches} branches with total promotion spend of ${insights.totalPromotionSpend.toLocaleString()}

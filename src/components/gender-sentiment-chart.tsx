@@ -82,7 +82,7 @@ const DynamicAnalystReview = ({ data }: { data: GenderSentimentData[] }) => {
   }
 
   return (
-    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+    <div className="mt-6 p-4 bg-white rounded-lg">
       <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Gender Sentiment Analysis</h4>
       <p className="text-sm text-gray-600 mb-3">
         Analysis of {insights.totalCustomers} customers across {data.length} gender categories

@@ -308,7 +308,7 @@ const DynamicProductQuantitiesReview = ({ data }: { data: ProductQuantity[] }) =
   }
 
   return (
-    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+    <div className="mt-6 p-4 bg-white rounded-lg">
       <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Product Analysis</h4>
       <p className="text-sm text-gray-600 mb-3">
         Analysis based on {insights.totalProducts} products with {insights.totalQuantity.toLocaleString()} total units sold

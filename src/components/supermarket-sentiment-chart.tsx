@@ -101,7 +101,7 @@ const DynamicAnalystReview = ({ data }: { data: SupermarketSentimentData }) => {
   }
 
   return (
-    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+    <div className="mt-6 p-4 bg-white rounded-lg">
       <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Supermarket Performance Analysis</h4>
       <p className="text-sm text-gray-600 mb-3">
         Comprehensive analysis of {insights.totalSupermarkets} supermarket locations

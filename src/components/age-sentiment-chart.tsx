@@ -98,7 +98,7 @@ const DynamicAgeSentimentReview = ({ data }: { data: AgeSentimentData[] }) => {
   const { insights } = review;
 
   return (
-    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+    <div className="mt-6 p-4 bg-white rounded-lg">
       <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Age Demographics Review</h4>
       <p className="text-sm text-gray-600 mb-3">
         Analysis based on {insights.totalCustomers} customers across {insights.ageGroups} age groups
