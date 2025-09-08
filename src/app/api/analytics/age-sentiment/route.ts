@@ -23,7 +23,13 @@ const AGE_GROUPS: AgeGroup[] = [
   { label: '35-39', min: 35, max: 39 },
   { label: '40-44', min: 40, max: 44 },
   { label: '45-49', min: 45, max: 49 },
-  { label: '50>=', min: 50, max: null },
+  { label: '50-54', min: 50, max: 54 },
+  { label: '55-59', min: 55, max: 59 },
+  { label: '60-64', min: 60, max: 64 },
+  { label: '65-69', min: 65, max: 69 },
+  { label: '70-74', min: 70, max: 74 },
+  { label: '75-79', min: 75, max: 79 },
+  { label: '80>=', min: 80, max: null },
 ];
 
 function getAgeGroup(age: number): string {

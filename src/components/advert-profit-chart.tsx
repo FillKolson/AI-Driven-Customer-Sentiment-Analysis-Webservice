@@ -355,7 +355,7 @@ export default function AdvertProfitChart({ loading: externalLoading }: { loadin
                 dataKey="advertisement_spend" 
                 name="Advertisement Spend"
                 tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
-                label={{ value: 'Advertisement Spend ($)', position: 'insideBottom', offset: -5 }}
+                // label={{ value: 'Advertisement Spend ($)', position: 'insideBottom', offset: -10 }}
                 domain={['auto', 'auto']}
               />
               <YAxis 
@@ -363,7 +363,7 @@ export default function AdvertProfitChart({ loading: externalLoading }: { loadin
                 dataKey="profit" 
                 name="Profit"
                 tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
-                label={{ value: 'Profit ($)', angle: -90, position: 'insideLeft' }}
+                // label={{ value: 'Profit ($)', angle: -90, position: 'insideLeft', offset: -10 }}
                 domain={['auto', 'auto']}
               />
               <ZAxis type="number" range={[100, 500]} />
