@@ -242,6 +242,32 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
       }
     }
 
+    // Pre-validate all selected files before starting any upload
+    for (const key of order) {
+      const file = uploadStatuses[key]?.file;
+      const config = tableConfigs.find(c => c.key === key);
+      if (!file || !config) continue; // safety check (should be covered above)
+
+      const isValid = await validateCsvFile(file, config.expectedColumns);
+      if (!isValid) {
+        setUploadStatuses(prev => ({
+          ...prev,
+          [key]: {
+            ...prev[key],
+            status: 'error',
+            message: 'Invalid CSV format. Please check the column headers match the expected format.'
+          }
+        }));
+
+        toast({
+          title: 'Validation failed',
+          description: `${config.title} CSV is invalid. Fix it before uploading.`,
+          variant: 'destructive',
+        });
+        return; // Abort bulk upload if any file is invalid
+      }
+    }
+
     setIsBulkUploading(true);
     try {
       for (const key of order) {
@@ -337,15 +363,38 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
               
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor={`file-${config.key}`}>Select CSV File</Label>
-                  <Input
-                    id={`file-${config.key}`}
-                    type="file"
-                    accept=".csv"
-                    onChange={(e) => handleFileSelect(config.key, e.target.files?.[0] || null)}
-                    disabled={status.status === 'uploading' || isBulkUploading}
-                    className="cursor-pointer transition-colors hover:bg-blue-50 hover:border-blue-300"
-                  />
+                  <Label>CSV File</Label>
+                  <div className="flex items-center gap-2">
+                    <label
+                      htmlFor={`file-${config.key}`}
+                      className="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md cursor-pointer hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      {status.file ? status.file.name : 'Choose File'}
+                    </label>
+                    <input
+                      id={`file-${config.key}`}
+                      type="file"
+                      accept=".csv"
+                      onChange={(e) => handleFileSelect(config.key, e.target.files?.[0] || null)}
+                      disabled={status.status === 'uploading' || isBulkUploading}
+                      className="hidden"
+                    />
+                    {status.file && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleFileSelect(config.key, null)}
+                        disabled={status.status === 'uploading' || isBulkUploading}
+                      >
+                        <span className="sr-only">Clear</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </Button>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500">
                     Expected columns: {config.expectedColumns.join(', ')}
                   </p>
