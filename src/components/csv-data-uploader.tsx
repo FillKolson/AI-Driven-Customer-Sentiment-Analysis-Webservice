@@ -226,9 +226,28 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
       'sentiment_analyses',
     ];
 
-    // Ensure all required files are selected
+    // Reset all statuses first
+    setUploadStatuses(prev => {
+      const newStatuses = { ...prev };
+      order.forEach(key => {
+        if (newStatuses[key]) {
+          newStatuses[key] = {
+            ...newStatuses[key],
+            status: 'idle',
+            message: '',
+            progress: 0
+          };
+        }
+      });
+      return newStatuses;
+    });
+
+    // Check all files are selected and validate them first
     for (const key of order) {
-      if (!uploadStatuses[key]?.file) {
+      const file = uploadStatuses[key]?.file;
+      const config = tableConfigs.find(c => c.key === key);
+      
+      if (!file) {
         setUploadStatuses(prev => ({
           ...prev,
           [key]: {
@@ -237,18 +256,16 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
             message: 'Please select a CSV file before bulk upload.'
           }
         }));
-        toast({ title: 'Missing file', description: `Please select a file for ${key.replaceAll('_', ' ')}.`, variant: 'destructive' });
+        toast({ 
+          title: 'Missing file', 
+          description: `Please select a file for ${key.replaceAll('_', ' ')}.`, 
+          variant: 'destructive' 
+        });
         return;
       }
-    }
 
-    // Pre-validate all selected files before starting any upload
-    for (const key of order) {
-      const file = uploadStatuses[key]?.file;
-      const config = tableConfigs.find(c => c.key === key);
-      if (!file || !config) continue; // safety check (should be covered above)
-
-      const isValid = await validateCsvFile(file, config.expectedColumns);
+      // Validate file format
+      const isValid = await validateCsvFile(file, config?.expectedColumns || []);
       if (!isValid) {
         setUploadStatuses(prev => ({
           ...prev,
@@ -258,24 +275,49 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
             message: 'Invalid CSV format. Please check the column headers match the expected format.'
           }
         }));
-
         toast({
           title: 'Validation failed',
-          description: `${config.title} CSV is invalid. Fix it before uploading.`,
+          description: `${config?.title || 'A file'} CSV is invalid. Fix it before uploading.`,
           variant: 'destructive',
         });
         return; // Abort bulk upload if any file is invalid
       }
     }
 
+    // If we get here, all validations passed
     setIsBulkUploading(true);
+    let uploadSuccess = true;
+
     try {
+      // Upload files in order
       for (const key of order) {
-        await uploadCsvData(key);
+        try {
+          await uploadCsvData(key);
+        } catch (error) {
+          uploadSuccess = false;
+          // Log the error but continue with next upload
+          console.error(`Upload failed for ${key}:`, error);
+        }
       }
-      toast({ title: 'Bulk upload complete', description: 'All tables were uploaded successfully in the required order.' });
-    } catch (e) {
-      // uploadCsvData already toasts specific errors
+
+      if (uploadSuccess) {
+        toast({ 
+          title: 'Bulk upload complete', 
+          description: 'All tables were uploaded successfully in the required order.' 
+        });
+      } else {
+        toast({
+          title: 'Upload completed with errors',
+          description: 'Some files failed to upload. Please check the status of each file.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Upload failed',
+        description: 'An unexpected error occurred during the upload process.',
+        variant: 'destructive',
+      });
     } finally {
       setIsBulkUploading(false);
     }
