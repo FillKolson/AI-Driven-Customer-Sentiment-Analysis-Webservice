@@ -74,8 +74,9 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
   );
 
   const { toast } = useToast();
-  const [datasetName, setDatasetName] = useState<string>("");
-  const [isBulkUploading, setIsBulkUploading] = useState<boolean>(false);
+  const [datasetName, setDatasetName] = useState("");
+  const [datasetNameError, setDatasetNameError] = useState<string | null>(null);
+  const [isBulkUploading, setIsBulkUploading] = useState(false);
 
   const handleFileSelect = (tableKey: string, file: File | null) => {
     setUploadStatuses(prev => ({
@@ -209,13 +210,10 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
   const uploadAllInOrder = async () => {
     // Validate dataset name
     if (!datasetName.trim()) {
-      toast({
-        title: 'Dataset name required',
-        description: 'Please enter a dataset name. It will be stored in the file_name column for all uploaded rows.',
-        variant: 'destructive',
-      });
+      setDatasetNameError("Dataset name is required");
       return;
     }
+    setDatasetNameError(null);
 
     // Required order
     const order = [
@@ -369,6 +367,11 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
           disabled={isBulkUploading}
           className="w-full"
         />
+        {datasetNameError && (
+          <p className="text-sm font-medium text-destructive">
+            {datasetNameError}
+          </p>
+        )}
         <div className="flex gap-2">
           <Button className="w-full" onClick={uploadAllInOrder} disabled={isBulkUploading}>
             {isBulkUploading ? (
