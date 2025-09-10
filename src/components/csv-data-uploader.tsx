@@ -24,13 +24,6 @@ interface CsvDataUploaderProps {
 
 const tableConfigs = [
   {
-    key: 'sentiment_analyses',
-    title: 'Sentiment Analyses',
-    description: 'Upload sentiment analysis data with customer feedback scores',
-    expectedColumns: ['sentiment_id', 'customer_id', 'supermarket_id', 'basket_id', 'sentiment_date', 'sentiment_score', 'confidence_level', 'sentiment_category'],
-    sampleFile: 'Sentiment_analysis.csv'
-  },
-  {
     key: 'supermarket_branches',
     title: 'Supermarket Branches',
     description: 'Upload supermarket branch data with financial metrics',
@@ -57,6 +50,13 @@ const tableConfigs = [
     description: 'Upload advertisement click-through rate optimization data',
     expectedColumns: ['supermarket_id', 'ad1', 'ad2', 'ad3', 'ad4', 'ad5', 'ad6', 'ad7', 'ad8', 'ad9', 'ad10'],
     sampleFile: 'Ads_CTR_Optimisation_Modified.csv'
+  },
+  {
+    key: 'sentiment_analyses',
+    title: 'Sentiment Analyses',
+    description: 'Upload sentiment analysis data with customer feedback scores',
+    expectedColumns: ['sentiment_id', 'customer_id', 'supermarket_id', 'basket_id', 'sentiment_date', 'sentiment_score', 'confidence_level', 'sentiment_category'],
+    sampleFile: 'Sentiment_analysis.csv'
   }
 ];
 
