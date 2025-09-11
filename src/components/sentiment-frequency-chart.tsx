@@ -355,6 +355,7 @@ export default function SentimentFrequencyChart({ loading = false }: SentimentFr
                 name="Purchase Frequency"
                 domain={['dataMin - 1', 'dataMax + 1']}
                 tickFormatter={(value) => value.toString()}
+                label={{ value: 'Purchase Frequency', position: 'insideBottom', offset: -15 }}
               />
               <YAxis 
                 dataKey="averageSentimentScore"
@@ -362,6 +363,15 @@ export default function SentimentFrequencyChart({ loading = false }: SentimentFr
                 name="Avg Sentiment Score"
                 domain={[0, 1]}
                 tickFormatter={(value) => value.toFixed(2)}
+                label={{
+                  value: 'Sentiment score',
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: -5,
+                  style: {
+                    textAnchor: 'middle'
+                  }
+                }}
               />
               <Tooltip content={<CustomTooltip />} />
               <Scatter 
