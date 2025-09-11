@@ -333,9 +333,10 @@ export default function SentimentPromotionChart({ loading = false }: SentimentPr
               <XAxis 
                 dataKey="promotionSpend" 
                 type="number"
-                name="Promotion Spend ($)"
+                name="Promotion Spend"
                 domain={['dataMin - 50000', 'dataMax + 50000']}
                 tickFormatter={(value: number) => `$${value.toFixed(0)}`}
+                label={{ value: 'Promotion Spend ($)', position: 'insideBottom', offset: -10 }}
                 ticks={(() => {
                   const min = Math.floor(data.summary.promotionSpendRange.min / 50000) * 50000;
                   const max = Math.ceil(data.summary.promotionSpendRange.max / 50000) * 50000;
@@ -349,9 +350,19 @@ export default function SentimentPromotionChart({ loading = false }: SentimentPr
               <YAxis 
                 dataKey="averageSentimentScore"
                 type="number"
-                name="Avg Sentiment Score"
+                name="Sentiment Score"
                 domain={[0, 1]}
                 tickFormatter={(value) => value.toFixed(2)}
+                //label={{ value: 'Sentiment score', angle: -90, position: 'insideLeft', offset: -10 }}
+                label={{
+                  value: 'Sentiment score',
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: -10,
+                  style: {
+                    textAnchor: 'middle'
+                  }
+                }}
               />
               <Tooltip content={<CustomTooltip />} />
               <Scatter 
