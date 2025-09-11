@@ -329,6 +329,7 @@ export default function SentimentProfitChart({ loading = false }: SentimentProfi
                 name="Profit ($)"
                 domain={['dataMin - 50', 'dataMax + 50']}
                 tickFormatter={(value) => `$${value.toFixed(0)}`}
+                label={{ value: 'Profit ($)', position: 'insideBottom', offset: -15 }}
               />
               <YAxis 
                 dataKey="averageSentimentScore"
@@ -336,6 +337,15 @@ export default function SentimentProfitChart({ loading = false }: SentimentProfi
                 name="Avg Sentiment Score"
                 domain={[0, 1]}
                 tickFormatter={(value) => value.toFixed(2)}
+                label={{
+                  value: 'Sentiment score',
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: -5,
+                  style: {
+                    textAnchor: 'middle'
+                  }
+                }}
               />
               <Tooltip content={<CustomTooltip />} />
               <Scatter 
