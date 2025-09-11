@@ -278,7 +278,7 @@ export default function AgeSentimentChart({ loading: externalLoading }: { loadin
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={data}
-              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              margin={{ top: 5, right: 30, left: 20, bottom: 15 }}
               layout="horizontal"
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -286,6 +286,7 @@ export default function AgeSentimentChart({ loading: externalLoading }: { loadin
                 dataKey="ageGroup" 
                 type="category" 
                 tick={{ fontSize: 14 }}
+                label={{ value: 'Age', position: 'insideBottom', offset: -10 }}
               />
               <YAxis 
                 type="number" 
@@ -293,6 +294,15 @@ export default function AgeSentimentChart({ loading: externalLoading }: { loadin
                 tickCount={6}
                 tickFormatter={(value) => value.toFixed(1)}
                 width={60}
+                label={{
+                  value: 'Sentiment score',
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: -5,
+                  style: {
+                    textAnchor: 'middle'
+                  }
+                }}
               />
               <Tooltip content={<CustomTooltip />} />
               <Bar 
@@ -304,10 +314,6 @@ export default function AgeSentimentChart({ loading: externalLoading }: { loadin
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="mt-4 text-sm text-gray-500 text-center">
-          Hover over bars to see customer count
-        </div>
-        
         {/* AI Review Component */}
         <DynamicAgeSentimentReview data={data} />
       </CardContent>
