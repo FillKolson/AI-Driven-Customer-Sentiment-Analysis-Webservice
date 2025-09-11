@@ -277,7 +277,7 @@ export default function GenderSentimentChart({ loading: externalLoading }: { loa
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={sortedData}
-              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              margin={{ top: 5, right: 30, left: 20, bottom: 20 }}
               layout="vertical"
             >
               <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
@@ -286,12 +286,22 @@ export default function GenderSentimentChart({ loading: externalLoading }: { loa
                 domain={[0, 1]} 
                 tickCount={6}
                 tickFormatter={(value) => value.toFixed(1)}
+                label={{ value: 'Sentiment score', position: 'insideBottom', offset: -15 }}
               />
               <YAxis 
                 dataKey="gender" 
                 type="category" 
                 width={80}
                 tick={{ fontSize: 14 }}
+                label={{
+                  value: 'Gender',
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: -5,
+                  style: {
+                    textAnchor: 'middle'
+                  }
+                }}
               />
               <Tooltip content={<CustomTooltip />} />
               <Bar 
@@ -303,10 +313,6 @@ export default function GenderSentimentChart({ loading: externalLoading }: { loa
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="mt-4 text-sm text-gray-500 text-center">
-          Hover over bars to see customer count
-        </div>
-        
         {/* Dynamic AI Review */}
         <DynamicAnalystReview data={data} />
       </CardContent>
