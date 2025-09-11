@@ -85,7 +85,7 @@ const DynamicAnalystReview = ({ data }: { data: GenderSentimentData[] }) => {
     <div className="mt-6 p-4 bg-white rounded-lg">
       <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Gender Sentiment Analysis</h4>
       <p className="text-sm text-gray-600 mb-3">
-        Analysis of {insights.totalCustomers} customers across {data.length} gender categories
+        Analysis of {insights.totalCustomers} sentiments across {data.length} gender categories
       </p>
       
       <div className="space-y-3 text-sm text-gray-700">
@@ -115,9 +115,9 @@ const DynamicAnalystReview = ({ data }: { data: GenderSentimentData[] }) => {
           <p className="font-medium text-purple-800">🏆 Performance Leaders</p>
           <p>
             <strong>{insights.bestPerformer.gender}</strong> customers show the highest satisfaction 
-            ({insights.bestPerformer.averageScore.toFixed(3)} avg sentiment, {insights.bestPerformer.count} customers), 
+            ({insights.bestPerformer.averageScore.toFixed(3)} avg sentiment, {insights.bestPerformer.count} sentiments), 
             while <strong>{insights.worstPerformer.gender}</strong> customers have the lowest 
-            ({insights.worstPerformer.averageScore.toFixed(3)} avg sentiment, {insights.worstPerformer.count} customers).
+            ({insights.worstPerformer.averageScore.toFixed(3)} avg sentiment, {insights.worstPerformer.count} sentiments).
           </p>
         </div>
 
@@ -127,7 +127,7 @@ const DynamicAnalystReview = ({ data }: { data: GenderSentimentData[] }) => {
           <div className="mt-2 space-y-1">
             {insights.genderDistribution.map((item, index) => (
               <div key={index} className="flex justify-between items-center">
-                <span>{item.gender}: {item.percentage.toFixed(1)}% of customers</span>
+                <span>{item.gender}: {item.percentage.toFixed(1)}% of sentiments</span>
                 <span className={`px-2 py-1 rounded text-xs ${
                   item.sentiment > 0.6 ? 'bg-green-100 text-green-800' :
                   item.sentiment >= 0.4 ? 'bg-blue-100 text-blue-800' :
@@ -196,7 +196,7 @@ export default function GenderSentimentChart({ loading: externalLoading }: { loa
         <div className="bg-white p-4 border border-gray-200 rounded shadow-lg">
           <p className="font-semibold">{data.gender}</p>
           <p>Avg. Sentiment: {data.averageScore.toFixed(2)}</p>
-          <p>Customers: {data.count}</p>
+          <p>Sentiments Amount: {data.count}</p>
         </div>
       );
     }
