@@ -286,7 +286,7 @@ export default function AgeSentimentChart({ loading: externalLoading }: { loadin
                 dataKey="ageGroup" 
                 type="category" 
                 tick={{ fontSize: 14 }}
-                label={{ value: 'Age', position: 'insideBottom', offset: -10 }}
+                label={{ value: 'Age Group', position: 'insideBottom', offset: -10 }}
               />
               <YAxis 
                 type="number" 

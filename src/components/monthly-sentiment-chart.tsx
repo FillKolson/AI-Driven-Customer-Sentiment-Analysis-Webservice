@@ -363,7 +363,7 @@ export default function MonthlySentimentChart({ loading: externalLoading }: { lo
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={data}
-              margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+              margin={{ top: 20, right: 20, bottom: 20, left: 40 }}
               barCategoryGap="10%"
               onMouseEnter={() => {
                 // We'll rely on the Bar's onMouseEnter to set the active index
@@ -377,6 +377,7 @@ export default function MonthlySentimentChart({ loading: externalLoading }: { lo
                 tick={{ fontSize: 12 }}
                 tickMargin={10}
                 axisLine={false}
+                label={{ value: 'Month', position: 'insideBottom', offset: -15 }}
               />
               <YAxis 
                 domain={[0, 1]} 
@@ -386,12 +387,20 @@ export default function MonthlySentimentChart({ loading: externalLoading }: { lo
                 axisLine={false}
                 tickLine={false}
                 width={30}
+                label={{
+                  value: 'Sentiment score',
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: -25,
+                  style: {
+                    textAnchor: 'middle'
+                  }
+                }}
               />
               <Tooltip 
                 content={<CustomTooltip />} 
                 cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
               />
-              <Legend />
               <Bar 
                 dataKey="averageScore" 
                 name="Average Sentiment Score"
@@ -412,11 +421,7 @@ export default function MonthlySentimentChart({ loading: externalLoading }: { lo
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </div>
-        <div className="mt-4 text-sm text-gray-500 text-center">
-          Hover over bars to see customer count for each month
-        </div>
-        
+        </div>        
         {/* AI Review Component */}
         <DynamicMonthlySentimentReview data={data} />
       </CardContent>

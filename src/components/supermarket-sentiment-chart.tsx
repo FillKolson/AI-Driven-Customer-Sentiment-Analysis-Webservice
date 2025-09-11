@@ -358,6 +358,7 @@ export default function SupermarketSentimentChart({ loading = false }: Supermark
                     domain={[0, 1]} 
                     tickCount={5}
                     tickFormatter={(value) => value.toFixed(1)}
+                    label={{ value: 'Sentiment Score', position: 'insideBottom', offset: -15 }}
                   />
                   <YAxis 
                     dataKey="supermarketId" 
@@ -377,7 +378,6 @@ export default function SupermarketSentimentChart({ loading = false }: Supermark
                     }}
                   />
                   <Tooltip content={<CustomTooltip />} />
-                  <Legend />
                   <ReferenceLine x={0.5} stroke="#8884d8" strokeDasharray="3 3" />
                   <Bar 
                     dataKey="averageScore" 
