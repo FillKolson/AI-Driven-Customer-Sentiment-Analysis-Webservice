@@ -350,7 +350,21 @@ export const signOutAction = async () => {
 export const checkUserSubscription = async (userId: string) => {
   const supabase = await createClient();
 
-  const { data: subscription, error } = await supabase
+  // 1) Check public.users.subscription_status first
+  const { data: userRow } = await supabase
+    .from('users')
+    .select('subscription_status')
+    .eq('user_id', userId)
+    .single();
+
+  const plan = (userRow?.subscription_status || '').toLowerCase();
+  if (plan === 'free') {
+    // Free plan is considered an active plan with limited usage
+    return true;
+  }
+
+  // 2) Fallback to paid subscription check (Stripe-backed)
+  const { data: subscription } = await supabase
     .from("subscriptions")
     .select("*")
     .eq("user_id", userId)
@@ -358,12 +372,6 @@ export const checkUserSubscription = async (userId: string) => {
     .order("current_period_end", { ascending: false })
     .limit(1)
     .maybeSingle();
-
-
-  if (error) {
-    // For now, allow free tier access
-    return true;
-  }
 
   return !!subscription;
 };

@@ -29,25 +29,17 @@ interface UserData {
   bio?: string;
 }
 
-interface SubscriptionData {
-  plan_name: string;
-  status: string;
-  current_period_end: number;
-  cancel_at_period_end: boolean;
-}
-
 interface UserSettingsFormProps {
   user: UserData;
-  subscription: SubscriptionData | null;
 }
 
 export default function UserSettingsForm({
   user,
-  subscription,
 }: UserSettingsFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [preferencesLoading, setPreferencesLoading] = useState(true);
   const [errors, setErrors] = useState<{full_name?: string}>({});
+  const [unsubscribed, setUnsubscribed] = useState(false);
   const [formData, setFormData] = useState({
     full_name: user.full_name,
     email: user.email,
@@ -183,8 +175,8 @@ export default function UserSettingsForm({
     });
   };
 
-  const getPlanBadgeColor = (plan: string) => {
-    switch (plan.toLowerCase()) {
+  const getPlanBadgeColor = (status: string) => {
+    switch (status.toLowerCase()) {
       case "pro":
         return "bg-blue-100 text-blue-800";
       case "enterprise":
@@ -306,107 +298,119 @@ export default function UserSettingsForm({
               <Label className="text-sm font-medium text-gray-500">
                 Current Plan
               </Label>
-              <div className="flex items-center gap-2">
-                {['free', 'pro', 'enterprise'].includes(subscription?.plan_name || '') &&
-                  // Hide Unsubscribe if already set to cancel at period end or canceled
-                  !subscription?.cancel_at_period_end && (
+              {(() => {
+                const displayStatus = (user.subscription_status || 'none');
+                return (
+                  <div className="flex items-center gap-2">
+                    {!unsubscribed && user.subscription_status !== 'free' ? (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={async () => {
+                          setIsLoading(true);
+                          try {
+                            const res = await fetch('/api/user/unsubscribe', { method: 'POST' });
+                            if (!res.ok) {
+                              const err = await res.json().catch(() => ({}));
+                              throw new Error(err.error || 'Failed to unsubscribe');
+                            }
+                            // Do not change badge to free; access continues until period end.
+                            // Just swap to Restore button locally.
+                            setUnsubscribed(true);
+                            toast({ 
+                              title: 'Unsubscribed', 
+                              description: 'Auto-renewal turned off. You can use your plan until the period ends.'
+                            });
+                          } catch (error) {
+                            let message = 'Failed to unsubscribe';
+                            if (error instanceof Error) {
+                              message = error.message;
+                            }
+                            toast({ 
+                              title: 'Error', 
+                              description: message, 
+                              variant: 'destructive' 
+                            });
+                          } finally {
+                            setIsLoading(false);
+                          }
+                        }}
+                      >
+                        Unsubscribe
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={async () => {
+                          setIsLoading(true);
+                          try {
+                            const res = await fetch('/api/user/restore-subscription', { method: 'POST' });
+                            const data = await res.json().catch(() => ({}));
+                            if (!res.ok) {
+                              throw new Error(data.error || 'Failed to restore subscription');
+                            }
+                            setUnsubscribed(false);
+                            toast({ title: 'Subscription restored', description: 'Auto-renewal turned back on.' });
+                          } catch (error) {
+                            let message = 'Failed to restore subscription';
+                            if (error instanceof Error) message = error.message;
+                            toast({ title: 'Error', description: message, variant: 'destructive' });
+                          } finally {
+                            setIsLoading(false);
+                          }
+                        }}
+                        className="ml-2"
+                      >
+                        Restore subscription
+                      </Button>
+                    )}
                     <Button
                       size="sm"
-                      variant="destructive"
+                      onClick={() => router.push('/pricing')}
                       className="ml-2"
-                      onClick={async () => {
-                        setIsLoading(true);
-                        try {
-                          const res = await fetch('/api/user/unsubscribe', { method: 'POST' });
-                          if (!res.ok) throw new Error('Failed to unsubscribe');
-                          toast({ title: 'Unsubscribed', description: 'Your subscription has been cancelled.' });
-                          router.refresh();
-                        } catch (error) {
-                          let message = 'Failed to unsubscribe';
-                          if (error instanceof Error) {
-                            message = error.message;
-                          }
-                          toast({ title: 'Error', description: message, variant: 'destructive' });
-                        } finally {
-                          setIsLoading(false);
-                        }
-                      }}
                     >
-                      Unsubscribe
+                      {displayStatus === 'free' ? (
+                        <span>Upgrade</span>
+                      ) : (
+                        <span>Manage</span>
+                      )}
                     </Button>
-                )}
-                <Button
-                  size="sm"
-                  onClick={() => router.push('/pricing')}
-                  className="ml-2"
-                >
-                  {subscription?.plan_name === 'none' ? (
-                    <span>Subscribe</span>
-                  ) : (
-                    <span>Manage</span>
-                  )}
-                </Button>
-                <span 
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPlanBadgeColor(subscription?.plan_name || "none")}`}
-                >
-                  {(subscription?.plan_name || "none").toUpperCase()}
-                </span>
-              </div>
+                    <span 
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPlanBadgeColor(displayStatus)}`}
+                    >
+                      {displayStatus.toUpperCase()}
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium text-gray-500">
                 API Usage This Month
               </Label>
-              {subscription?.plan_name === 'none' ? (
-                <span className="text-sm text-red-600 font-semibold">API access is unavailable without a subscription.</span>
-              ) : (
-                <span className="text-sm">
-                  {typeof user.api_usage_current_month === 'number' ? user.api_usage_current_month : 0} / {user.api_limit_per_month}
-                </span>
-              )}
+              <span className="text-sm">
+                {typeof user.api_usage_current_month === 'number' ? user.api_usage_current_month : 0} / {user.api_limit_per_month}
+              </span>
             </div>
 
-            {subscription?.plan_name !== 'none' && (
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${Math.min((user.api_usage_current_month / user.api_limit_per_month) * 100, 100)}%`,
-                  }}
-                />
-              </div>
-            )}
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{
+                  width: `${Math.min((user.api_usage_current_month / user.api_limit_per_month) * 100, 100)}%`,
+                }}
+              />
+            </div>
 
-            {subscription && subscription.current_period_end ? (
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium text-gray-500">
-                  {subscription.cancel_at_period_end
-                    ? 'Subscription ends at'
-                    : 'Next Billing Date'}
-                </Label>
-                <div className="flex flex-col items-end">
-                  <span className="text-sm">
-                    {new Date(
-                      subscription.current_period_end * 1000,
-                    ).toLocaleDateString()}
-                  </span>
-                  {(() => {
-                    const now = Date.now();
-                    const end = subscription.current_period_end * 1000;
-                    const diffDays = (end - now) / (1000 * 60 * 60 * 24);
-                    if (diffDays < 7 && diffDays > 0) {
-                      return (
-                        <span className="text-sm text-red-600 font-semibold mt-1">
-                          Payment is coming soon!
-                        </span>
-                      );
-                    }
-                    return null;
-                  })()}
-                </div>
-              </div>
-            ) : null}
+            {/* <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium text-gray-500">
+                Status
+              </Label>
+              <span className="text-sm capitalize">
+                {user.subscription_status || 'Inactive'}
+              </span>
+            </div> */}
           </div>
         </CardContent>
       </Card>

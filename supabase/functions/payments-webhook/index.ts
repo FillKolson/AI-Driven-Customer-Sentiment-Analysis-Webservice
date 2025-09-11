@@ -192,12 +192,37 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
     amount: subscription.items.data[0]?.plan.amount ?? 0,
     started_at: subscription.start_date ?? Math.floor(Date.now() / 1000),
     customer_id: subscription.customer,
+    stripe_customer_id: subscription.customer,
     metadata: subscription.metadata || {},
     canceled_at: subscription.canceled_at,
     ended_at: subscription.ended_at
   };
 
-  // Upsert subscription in database
+  const priceId = subscription.items.data[0]?.price.id;
+  const planInfo = PLAN_INFO[priceId] ?? { name: FREE_PLAN_NAME, limit: FREE_PLAN_LIMIT };
+
+  // If the mapped plan is free (or unknown), do NOT create a subscription row. Just set the user to free.
+  if (planInfo.name === FREE_PLAN_NAME) {
+    await supabaseClient
+      .from('users')
+      .update({
+        api_usage_current_month: 0,
+        api_limit_per_month: FREE_PLAN_LIMIT,
+        subscription: null,
+        subscription_status: FREE_PLAN_NAME,
+      })
+      .eq('user_id', userId);
+
+    return new Response(
+      JSON.stringify({ message: "Assigned free plan (no Stripe subscription stored)" }),
+      { 
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  // Paid plans: upsert subscription and update user's subscription reference and limits
   await supabaseClient
     .from('subscriptions')
     .upsert({
@@ -214,13 +239,10 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
     .eq('stripe_id', subscription.id)
     .maybeSingle();
 
-  const priceId = subscription.items.data[0]?.price.id;
-  const planInfo = PLAN_INFO[priceId] ?? { name: 'free', limit: 100 };
-
-  // Update the user's API limit, subscription id, and subscription status (plan name)
   await supabaseClient
     .from('users')
     .update({
+      api_usage_current_month: 0,
       api_limit_per_month: planInfo.limit,
       subscription: subscriptionRow?.id || null,
       subscription_status: planInfo.name,
@@ -279,13 +301,36 @@ async function handleSubscriptionDeleted(supabaseClient: any, event: any) {
 
   try {
     await updateSubscriptionStatus(supabaseClient, subscription.id, "canceled");
-    
-    // If we have email in metadata, update user's subscription status
-    if (subscription?.metadata?.email) {
+
+    // Try to resolve the user id by multiple strategies
+    const userId = await findUserId({
+      supabaseClient,
+      metadata: subscription?.metadata,
+      customerId: subscription?.customer,
+      customerEmail: subscription?.metadata?.email
+    });
+
+    if (userId) {
       await supabaseClient
-        .from("users")
-        .update({ subscription: null, subscription_status: null })
-        .eq("email", subscription.metadata.email);
+        .from('users')
+        .update({
+          subscription: null,
+          subscription_status: FREE_PLAN_NAME,
+          api_usage_current_month: 0,
+          api_limit_per_month: FREE_PLAN_LIMIT
+        })
+        .eq('user_id', userId);
+    } else if (subscription?.metadata?.email) {
+      // Fallback: update by email if available
+      await supabaseClient
+        .from('users')
+        .update({
+          subscription: null,
+          subscription_status: FREE_PLAN_NAME,
+          api_usage_current_month: 0,
+          api_limit_per_month: FREE_PLAN_LIMIT
+        })
+        .eq('email', subscription.metadata.email);
     }
 
     return new Response(
@@ -531,10 +576,14 @@ async function handleInvoicePaymentFailed(supabaseClient: any, event: any) {
   }
 }
 
-// Map Stripe price_id to plan name and API limit
+// Free plan constants (decoupled from Stripe)
+const FREE_PLAN_NAME = 'free';
+const FREE_PLAN_LIMIT = 100;
+
+// Map Stripe price_id to plan name and API limit (paid plans only)
+// Note: Do NOT include the free plan here; free is handled outside of Stripe.
 const PLAN_INFO: Record<string, { name: string, limit: number }> = {
   // Replace these with your actual Stripe price IDs
-  'price_1RiXOuP2WBP7umLnemfXzK4L': { name: 'free', limit: 100 },
   'price_1RiXPNP2WBP7umLnoxh9cgnL': { name: 'pro', limit: 5000 },
   'price_1RiXPmP2WBP7umLnzZqcBXdO': { name: 'enterprise', limit: 50000 },
 };
