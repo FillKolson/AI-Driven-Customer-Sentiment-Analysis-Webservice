@@ -14,22 +14,23 @@ export default async function SettingsPage() {
     return redirect("/sign-in");
   }
 
-  // Get user profile data
+  // Get user profile data with subscription info
   const { data: profile } = await supabase
     .from("users")
     .select("*")
     .eq("id", user.id)
     .single();
 
-  // Get subscription info - get the latest active subscription
-  const { data: subscription } = await supabase
-    .from("subscriptions")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .order("current_period_end", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Profile Not Found</h1>
+          <p className="text-gray-600">We couldn't find your profile information.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -46,28 +47,13 @@ export default async function SettingsPage() {
             user={{
               id: user.id,
               email: user.email || "",
-              full_name: profile?.full_name || profile?.name || "",
-              bio: profile?.bio || "",
-              subscription_status: profile?.subscription_status || "none",
-              api_usage_current_month: profile?.api_usage_current_month || "",
-              api_limit_per_month: profile?.api_limit_per_month || "",
-              created_at: profile?.created_at || new Date().toISOString(),
+              full_name: profile.full_name || profile.name || "",
+              bio: profile.bio || "",
+              subscription_status: profile.subscription_status || "free",
+              api_usage_current_month: profile.api_usage_current_month || 0,
+              api_limit_per_month: profile.api_limit_per_month || 0,
+              created_at: profile.created_at || new Date().toISOString(),
             }}
-            subscription={
-              subscription
-                ? {
-                    plan_name: profile?.subscription_status || 'free',
-                    status: subscription.status,
-                    current_period_end: subscription.current_period_end,
-                    cancel_at_period_end: subscription.cancel_at_period_end ?? false,
-                  }
-                : {
-                    plan_name: 'none',
-                    status: 'none',
-                    current_period_end: 0,
-                    cancel_at_period_end: false,
-                  }
-            }
           />
         </div>
       </main>
