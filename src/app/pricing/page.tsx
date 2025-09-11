@@ -9,15 +9,32 @@ export default async function Pricing() {
     const { data: plans, error } = await supabase.functions.invoke('supabase-functions-get-plans');
 
     // Fetch user's current subscription status if user is logged in
-    let currentSubscription = null;
+    let currentSubscription: { status: string; plan: string | null } | null = null;
     if (user) {
         try {
-            const { data: subscriptionData } = await supabase.functions.invoke('supabase-functions-get-subscription-status', {
-                body: { user_id: user.id }
-            });
-            currentSubscription = subscriptionData;
+            // Read subscription status directly from users table
+            const { data: userRow } = await supabase
+                .from('users')
+                .select('subscription_status')
+                .eq('id', user.id)
+                .single();
+
+            const status = (userRow?.subscription_status || 'free').toLowerCase();
+
+            // Map status to price_id used by plans for correct highlighting
+            // Keep these IDs in sync with supabase/functions/get-plans/index.ts PLAN_FEATURES
+            const statusToPriceId: Record<string, string | null> = {
+                free: null,
+                pro: 'price_1RiXPNP2WBP7umLnoxh9cgnL',
+                enterprise: 'price_1RiXPmP2WBP7umLnzZqcBXdO',
+            };
+
+            currentSubscription = {
+                status,
+                plan: statusToPriceId[status] ?? null,
+            };
         } catch (error) {
-            console.error('Error fetching subscription status:', error);
+            console.error('Error fetching subscription status from users table:', error);
         }
     }
 

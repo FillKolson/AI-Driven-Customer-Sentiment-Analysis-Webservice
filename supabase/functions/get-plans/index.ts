@@ -97,18 +97,22 @@ serve(async (req) => {
                 };
             });
 
-        // Add the free plan at the beginning
-        const plans = [FREE_PLAN, ...paidPlans];
-
-        console.log('Filtered and sorted plans to return:', plans);
-
-        return new Response(
-            JSON.stringify(plans),
-            { 
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 200 
-            }
-        );
+        // Sort paid plans to ensure Pro comes before Enterprise
+        const sortedPaidPlans = paidPlans.sort((a, b) => {
+            // Pro should come before Enterprise
+            if (a.name === 'Pro') return -1;
+            if (b.name === 'Pro') return 1;
+            return 0;
+        });
+        
+        // Combine free plan with sorted paid plans
+        const allPlans = [FREE_PLAN, ...sortedPaidPlans];
+        
+        console.log('Returning plans:', allPlans);
+        return new Response(JSON.stringify(allPlans), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+        });
     } catch (error) {
         console.error("Error getting products/plans:", error);
         return new Response(

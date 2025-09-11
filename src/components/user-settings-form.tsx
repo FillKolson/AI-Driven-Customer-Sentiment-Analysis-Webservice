@@ -298,91 +298,86 @@ export default function UserSettingsForm({
               <Label className="text-sm font-medium text-gray-500">
                 Current Plan
               </Label>
-              {(() => {
-                const displayStatus = (user.subscription_status || 'none');
-                return (
-                  <div className="flex items-center gap-2">
-                    {!unsubscribed && user.subscription_status !== 'free' ? (
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={async () => {
-                          setIsLoading(true);
-                          try {
-                            const res = await fetch('/api/user/unsubscribe', { method: 'POST' });
-                            if (!res.ok) {
-                              const err = await res.json().catch(() => ({}));
-                              throw new Error(err.error || 'Failed to unsubscribe');
-                            }
-                            // Do not change badge to free; access continues until period end.
-                            // Just swap to Restore button locally.
-                            setUnsubscribed(true);
-                            toast({ 
-                              title: 'Unsubscribed', 
-                              description: 'Auto-renewal turned off. You can use your plan until the period ends.'
-                            });
-                          } catch (error) {
-                            let message = 'Failed to unsubscribe';
-                            if (error instanceof Error) {
-                              message = error.message;
-                            }
-                            toast({ 
-                              title: 'Error', 
-                              description: message, 
-                              variant: 'destructive' 
-                            });
-                          } finally {
-                            setIsLoading(false);
-                          }
-                        }}
-                      >
-                        Unsubscribe
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        onClick={async () => {
-                          setIsLoading(true);
-                          try {
-                            const res = await fetch('/api/user/restore-subscription', { method: 'POST' });
-                            const data = await res.json().catch(() => ({}));
-                            if (!res.ok) {
-                              throw new Error(data.error || 'Failed to restore subscription');
-                            }
-                            setUnsubscribed(false);
-                            toast({ title: 'Subscription restored', description: 'Auto-renewal turned back on.' });
-                          } catch (error) {
-                            let message = 'Failed to restore subscription';
-                            if (error instanceof Error) message = error.message;
-                            toast({ title: 'Error', description: message, variant: 'destructive' });
-                          } finally {
-                            setIsLoading(false);
-                          }
-                        }}
-                        className="ml-2"
-                      >
-                        Restore subscription
-                      </Button>
-                    )}
+              <div className="flex items-center gap-2">
+                {user.subscription_status !== 'free' && (
+                  !unsubscribed ? (
                     <Button
                       size="sm"
-                      onClick={() => router.push('/pricing')}
+                      variant="destructive"
+                      onClick={async () => {
+                        setIsLoading(true);
+                        try {
+                          const res = await fetch('/api/user/unsubscribe', { method: 'POST' });
+                          if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.error || 'Failed to unsubscribe');
+                          }
+                          setUnsubscribed(true);
+                          toast({ 
+                            title: 'Unsubscribed', 
+                            description: 'Auto-renewal turned off. You can use your plan until the period ends.'
+                          });
+                        } catch (error) {
+                          let message = 'Failed to unsubscribe';
+                          if (error instanceof Error) {
+                            message = error.message;
+                          }
+                          toast({ 
+                            title: 'Error', 
+                            description: message, 
+                            variant: 'destructive' 
+                          });
+                        } finally {
+                          setIsLoading(false);
+                        }
+                      }}
+                    >
+                      Unsubscribe
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        setIsLoading(true);
+                        try {
+                          const res = await fetch('/api/user/restore-subscription', { method: 'POST' });
+                          const data = await res.json().catch(() => ({}));
+                          if (!res.ok) {
+                            throw new Error(data.error || 'Failed to restore subscription');
+                          }
+                          setUnsubscribed(false);
+                          toast({ title: 'Subscription restored', description: 'Auto-renewal turned back on.' });
+                        } catch (error) {
+                          let message = 'Failed to restore subscription';
+                          if (error instanceof Error) message = error.message;
+                          toast({ title: 'Error', description: message, variant: 'destructive' });
+                        } finally {
+                          setIsLoading(false);
+                        }
+                      }}
                       className="ml-2"
                     >
-                      {displayStatus === 'free' ? (
-                        <span>Upgrade</span>
-                      ) : (
-                        <span>Manage</span>
-                      )}
+                      Restore subscription
                     </Button>
-                    <span 
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPlanBadgeColor(displayStatus)}`}
-                    >
-                      {displayStatus.toUpperCase()}
-                    </span>
-                  </div>
-                );
-              })()}
+                  )
+                )}
+                <Button
+                  size="sm"
+                  onClick={() => router.push('/pricing')}
+                  className="ml-2"
+                >
+                  {user.subscription_status === 'free' ? (
+                    <span>Upgrade</span>
+                  ) : (
+                    <span>Manage</span>
+                  )}
+                </Button>
+                <span 
+                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPlanBadgeColor(user.subscription_status || 'none')}`}
+                >
+                  {(user.subscription_status || 'NONE').toUpperCase()}
+                </span>
+              </div>
             </div>
 
             <div className="flex items-center justify-between">

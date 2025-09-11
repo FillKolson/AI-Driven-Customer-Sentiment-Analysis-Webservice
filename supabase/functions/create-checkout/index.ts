@@ -63,7 +63,25 @@ serve(async (req) => {
         .eq('user_id', user.user_id);
     }
 
-    // 4. Create checkout session
+    // 4. Cancel any existing active/trialing/past_due subscriptions to prevent overlap when switching plans
+    try {
+      const statuses = ['active', 'trialing', 'past_due'] as const;
+      for (const status of statuses) {
+        const subs = await stripe.subscriptions.list({ customer: customerId!, status, limit: 100 });
+        for (const sub of subs.data) {
+          // If the current subscription already matches the target price, skip cancel to avoid thrash
+          const hasSamePrice = sub.items.data.some((it) => it.price?.id === price_id);
+          if (!hasSamePrice) {
+            await stripe.subscriptions.cancel(sub.id);
+          }
+        }
+      }
+    } catch (cancelErr) {
+      console.warn('Warning: failed to cancel existing subscriptions before checkout', cancelErr);
+      // Proceed anyway; webhook will reconcile if needed
+    }
+
+    // 5. Create checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{ price: price_id, quantity: 1 }],
