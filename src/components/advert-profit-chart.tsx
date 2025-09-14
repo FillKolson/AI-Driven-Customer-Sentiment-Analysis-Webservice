@@ -355,7 +355,7 @@ export default function AdvertProfitChart({ loading: externalLoading }: { loadin
                 dataKey="advertisement_spend" 
                 name="Advertisement Spend"
                 tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
-                // label={{ value: 'Advertisement Spend ($)', position: 'insideBottom', offset: -10 }}
+                label={{ value: 'Advertisement Spend ($)', position: 'insideBottom', offset: -10 }}
                 domain={['auto', 'auto']}
               />
               <YAxis 
@@ -364,11 +364,19 @@ export default function AdvertProfitChart({ loading: externalLoading }: { loadin
                 name="Profit"
                 tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
                 // label={{ value: 'Profit ($)', angle: -90, position: 'insideLeft', offset: -10 }}
+                label={{
+                  value: 'Profit ($)',
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: -10,
+                  style: {
+                    textAnchor: 'middle'
+                  }
+                }}
                 domain={['auto', 'auto']}
               />
               <ZAxis type="number" range={[100, 500]} />
               <Tooltip content={<CustomTooltip />} />
-              <Legend />
               <Scatter name="Branches" data={data}>
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -377,10 +385,6 @@ export default function AdvertProfitChart({ loading: externalLoading }: { loadin
             </ScatterChart>
           </ResponsiveContainer>
         </div>
-        <div className="mt-2 text-sm text-gray-500 text-center">
-          Each point represents a supermarket branch. Hover for details.
-        </div>
-        
         {/* AI Review Component */}
         <DynamicAdvertProfitReview data={data} />
       </CardContent>
