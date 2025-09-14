@@ -44,30 +44,8 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // First, get all customers with their spending scores
-    const { data: allCustomers, error: customersError } = await supabase
-      .from('supermarket_customer_members')
-      .select('spending_score')
-      .not('spending_score', 'is', null);
-
-    if (customersError) {
-      console.error('Error fetching customer spending scores:', customersError);
-      return NextResponse.json(
-        { error: 'Failed to fetch customer spending scores' },
-        { status: 500 }
-      );
-    }
-
-    // Count customers per spending group
-    const spendingCounts = (allCustomers || []).reduce<Record<string, number>>((acc, { spending_score }) => {
-      if (spending_score === null) return acc;
-      const group = getSpendingGroup(spending_score);
-      acc[group] = (acc[group] || 0) + 1;
-      return acc;
-    }, {});
-
-    // Then get the sentiment scores with customer spending scores
-    const { data, error } = await supabase
+    // Get sentiment analyses for the current user with customer spending scores
+    const { data: sentimentData, error } = await supabase
       .from('sentiment_analyses')
       .select(`
         sentiment_score,
@@ -75,9 +53,8 @@ export async function GET() {
           spending_score
         )
       `)
+      .eq('user_id', user.id)
       .not('customer.spending_score', 'is', null);
-
-    const typedData = data as unknown as SentimentResponse[] | null;
 
     if (error) {
       console.error('Error fetching spending sentiment data:', error);
@@ -87,8 +64,31 @@ export async function GET() {
       );
     }
 
+    if (!sentimentData || sentimentData.length === 0) {
+      return NextResponse.json({ chartData: [] });
+    }
+
+    // Count customers per spending group from the sentiment data
+    const spendingCounts = (sentimentData || []).reduce<Record<string, number>>((acc, item: any) => {
+      const score = item.customer?.spending_score;
+      if (score === null || score === undefined) return acc;
+      const group = getSpendingGroup(score);
+      acc[group] = (acc[group] || 0) + 1;
+      return acc;
+    }, {});
+
+    const typedData = sentimentData as unknown as SentimentResponse[] | null;
+
+    if (!typedData) {
+      console.error('No valid data received');
+      return NextResponse.json(
+        { error: 'No valid data available' },
+        { status: 404 }
+      );
+    }
+
     // Process the data to group by spending group
-    const spendingGroups = (typedData || []).reduce<Record<string, {scores: number[]}>>((acc, item) => {
+    const spendingGroups = (typedData || []).reduce<Record<string, {scores: number[]}>>((acc, item: any) => {
       if (item.customer?.spending_score === null || item.customer?.spending_score === undefined) return acc;
       
       const group = getSpendingGroup(item.customer.spending_score);

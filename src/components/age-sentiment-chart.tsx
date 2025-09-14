@@ -200,7 +200,7 @@ export default function AgeSentimentChart({ loading: externalLoading }: { loadin
         <div className="bg-white p-4 border border-gray-200 rounded shadow-lg">
           <p className="font-semibold">Age: {data.ageGroup}</p>
           <p>Avg. Sentiment: {data.averageScore.toFixed(2)}</p>
-          <p>Customers: {data.count}</p>
+          <p>Sentiments: {data.count}</p>
         </div>
       );
     }

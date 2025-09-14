@@ -4,7 +4,7 @@ sentiment_id,customer_id,supermarket_id,basket_id,sentiment_date,sentiment_score
 3,23,5,3,2025-06-03,0.91,69,neutral,
 4,67,28,4,2025-06-04,0.15,49,negative,
 5,12,39,5,2025-06-05,0.63,88,positive,
-6,98,14,6,2025-06-06,0,28,62,neutral,
+6,98,14,6,2025-06-06,0.28,62,neutral,
 7,34,50,7,2025-06-07,0.87,45,negative,
 8,76,3,8,2025-06-08,0.95,96,positive,
 9,15,21,9,2025-06-09,0.41,72,neutral,
