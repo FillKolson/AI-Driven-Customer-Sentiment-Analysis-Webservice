@@ -1,6 +1,7 @@
 "use client";
 
 import { User } from "@supabase/supabase-js";
+import { useState } from "react";
 import { Button } from "./ui/button";
 import {
     Card,
@@ -12,12 +13,28 @@ import {
 } from "./ui/card";
 import { Check } from "lucide-react";
 import { supabase } from "../../supabase/supabase";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "./ui/alert-dialog";
 
 export default function PricingCard({ item, user, currentSubscription }: {
     item: any,
     user: User | null,
     currentSubscription?: any
 }) {
+    const [showUnusedBalanceWarning, setShowUnusedBalanceWarning] = useState(false);
+    const [pendingPriceId, setPendingPriceId] = useState<string | null>(null);
+    const [remainingThisMonth, setRemainingThisMonth] = useState<number>(0);
+    const [usageLimit, setUsageLimit] = useState<number>(0);
+    const [isProcessing, setIsProcessing] = useState(false);
+
     // Handle checkout process
     const handleCheckout = async (priceId: string) => {
         // For free plan, activate via Edge Function then redirect
@@ -95,6 +112,48 @@ export default function PricingCard({ item, user, currentSubscription }: {
         return `Get ${item.name}`;
     };
 
+    // Before checkout, warn if user is currently on a paid plan and has unused API balance this month
+    const checkUnusedBalanceAndProceed = async (priceId: string) => {
+        try {
+            const currentlyPaid = !!currentSubscription && currentSubscription.status && currentSubscription.status !== 'free';
+
+            // If user not logged in or currently not on a paid plan, proceed as before
+            if (!user || !currentlyPaid) {
+                await handleCheckout(priceId);
+                return;
+            }
+
+            setIsProcessing(true);
+            const res = await fetch('/api/user/usage');
+            if (!res.ok) {
+                // If we can't fetch usage, proceed as before
+                setIsProcessing(false);
+                await handleCheckout(priceId);
+                return;
+            }
+            const usage = await res.json();
+            const used = usage?.current_month_usage ?? 0;
+            const limit = usage?.limit ?? 0;
+            const remaining = Math.max(0, (limit || 0) - (used || 0));
+
+            setIsProcessing(false);
+
+            // Show warning if there is some remaining balance this month
+            if (limit > 0 && remaining > 0) {
+                setUsageLimit(limit);
+                setRemainingThisMonth(remaining);
+                setPendingPriceId(priceId);
+                setShowUnusedBalanceWarning(true);
+            } else {
+                await handleCheckout(priceId);
+            }
+        } catch (e) {
+            console.error('Pre-check usage failed, proceeding to checkout:', e);
+            setIsProcessing(false);
+            await handleCheckout(priceId);
+        }
+    };
+
     return (
         <Card className={`w-full relative overflow-hidden ${item.popular ? 'border-2 border-blue-500 shadow-xl scale-105' : 'border border-gray-200'}`}>
             {item.popular && (
@@ -135,7 +194,7 @@ export default function PricingCard({ item, user, currentSubscription }: {
                 <Button
                     onClick={async () => {
                         if (!isCurrentPlan) {
-                            await handleCheckout(item.price_id);
+                            await checkUnusedBalanceAndProceed(item.price_id);
                         }
                     }}
                     disabled={isCurrentPlan}
@@ -151,6 +210,36 @@ export default function PricingCard({ item, user, currentSubscription }: {
                 >
                     {getButtonText()}
                 </Button>
+
+                {/* Warning dialog about losing unused API balance when changing paid plans mid-cycle */}
+                <AlertDialog open={showUnusedBalanceWarning} onOpenChange={setShowUnusedBalanceWarning}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Unused API balance this month</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                You still have {remainingThisMonth} out of {usageLimit} API calls remaining for this billing cycle. If you continue to change your plan now, your unused API balance for this month may be lost or not carried over.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                                disabled={isProcessing}
+                                onClick={async () => {
+                                    try {
+                                        setShowUnusedBalanceWarning(false);
+                                        if (pendingPriceId) {
+                                            await handleCheckout(pendingPriceId);
+                                        }
+                                    } finally {
+                                        setPendingPriceId(null);
+                                    }
+                                }}
+                            >
+                                Continue to payment
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </CardFooter>
         </Card>
     )
