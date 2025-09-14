@@ -345,38 +345,101 @@ export default function CsvDataUploader({ userId, currentUsage = 0, usageLimit =
 
     // If we get here, all validations passed
     setIsBulkUploading(true);
-    let uploadSuccess = true;
 
     try {
-      // Upload files in order
+      // Build a single FormData payload for bulk endpoint
+      const bulkForm = new FormData();
+      bulkForm.append('datasetName', datasetName.trim());
       for (const key of order) {
-        try {
-          await uploadCsvData(key);
-        } catch (error) {
-          uploadSuccess = false;
-          // Log the error but continue with next upload
-          console.error(`Upload failed for ${key}:`, error);
-        }
+        const f = uploadStatuses[key]?.file;
+        if (f) bulkForm.append(key, f);
       }
 
-      if (uploadSuccess) {
-        toast({ 
-          title: 'Bulk upload complete', 
-          description: 'All tables were uploaded successfully in the required order.' 
-        });
-      } else {
+      const response = await fetch('/api/csv-upload/bulk', {
+        method: 'POST',
+        body: bulkForm,
+      });
+
+      if (!response.ok) {
+        let message = 'Bulk upload failed';
+        let details: string[] | null = null;
+        try {
+          const err = await response.json();
+          message = err.error || message;
+          if (err.details && Array.isArray(err.details)) {
+            details = err.details as string[];
+          }
+        } catch {}
+
+        if (details && details.length > 0) {
+          // Map details to specific keys and set only those to error
+          const detailsByKey: Record<string, string[]> = {};
+          for (const d of details) {
+            // Expect prefix like "table_key: message"
+            const idx = d.indexOf(':');
+            if (idx > 0) {
+              const key = d.slice(0, idx).trim();
+              const msg = d.slice(idx + 1).trim();
+              if (!detailsByKey[key]) detailsByKey[key] = [];
+              detailsByKey[key].push(msg);
+            }
+          }
+
+          setUploadStatuses(prev => {
+            const next = { ...prev };
+            for (const key of Object.keys(detailsByKey)) {
+              if (order.includes(key as any)) {
+                next[key] = {
+                  ...next[key],
+                  status: 'error',
+                  progress: 0,
+                  message: `${message}: ${detailsByKey[key].slice(0, 3).join('; ')}`,
+                };
+              }
+            }
+            return next;
+          });
+        }
+
+        // Show toast, but do not overwrite statuses for unaffected inputs
         toast({
-          title: 'Upload completed with errors',
-          description: 'Some files failed to upload. Please check the status of each file.',
+          title: 'Bulk upload failed',
+          description: details && details.length > 0 ? `${message}: ${details.slice(0, 5).join('; ')}` : message,
           variant: 'destructive',
         });
+        return;
       }
-    } catch (error) {
-      toast({
-        title: 'Upload failed',
-        description: 'An unexpected error occurred during the upload process.',
-        variant: 'destructive',
+
+      const result = await response.json();
+
+      // Success: update statuses per table with counts
+      setUploadStatuses(prev => {
+        const next = { ...prev };
+        const byKey: Record<string, number> = {};
+        if (Array.isArray(result.byTable)) {
+          for (const r of result.byTable) {
+            if (r && r.key) byKey[r.key] = r.inserted;
+          }
+        }
+        for (const key of order) {
+          next[key] = {
+            ...next[key],
+            status: 'success',
+            progress: 100,
+            message: `Successfully uploaded ${byKey[key] ?? 0} records`,
+          };
+        }
+        return next;
       });
+
+      toast({
+        title: 'Bulk upload complete',
+        description: `All tables were uploaded successfully. Total inserted: ${result.totalInserted ?? ''}`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'An unexpected error occurred during bulk upload.';
+      // Do not mark all as error; just notify
+      toast({ title: 'Bulk upload failed', description: message, variant: 'destructive' });
     } finally {
       setIsBulkUploading(false);
     }
