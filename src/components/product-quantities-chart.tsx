@@ -133,85 +133,100 @@ export default function ProductQuantitiesChart() {
     quantity: item.quantity
   }));
 
+  // Calculate total height needed based on number of products
+  const barHeight = 16; // Fixed height for each bar
+  const barGap = 4; // Gap between bars
+  const padding = 100; // Top and bottom padding
+  const totalHeight = Math.max(
+    chartData.length * (barHeight + barGap) + padding,
+    400 // Minimum height
+  );
+
   return (
     <div className="w-full">
-      <Card className="w-full h-[500px] bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800">
-        <CardHeader>
+      <Card className="w-full h-[600px] bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 flex flex-col">
+        <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5 text-primary" />
             Product Quantities
           </CardTitle>
         </CardHeader>
-        <CardContent className="h-[calc(100%-80px)]">
-          <style jsx>{`
-            .bar-chart .recharts-bar-rectangle:hover {
-              filter: brightness(1.1);
-              transition: all 0.2s ease-in-out;
-            }
-            .bar-chart .recharts-cartesian-grid line {
-              stroke: rgba(0, 0, 0, 0.05);
-            }
-            .dark .bar-chart .recharts-cartesian-grid line {
-              stroke: rgba(255, 255, 255, 0.05);
-            }
-          `}</style>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              layout="vertical"
-              data={chartData}
-              margin={{
-                top: 20,
-                right: 30,
-                left: 20,
-                bottom: 5,
-              }}
-              barSize={24}
-              barGap={4}
-              barCategoryGap={8}
-              className="bar-chart"
-            >
-              <defs>
-                {COLORS.map((color) => (
-                  <linearGradient key={color} id={`gradient-${color.replace('#', '')}`} x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor={color} stopOpacity={0.8} />
-                    <stop offset="100%" stopColor={color} stopOpacity={0.4} />
-                  </linearGradient>
-                ))}
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis type="number" />
-              <YAxis 
-                dataKey="name" 
-                type="category" 
-                width={150}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend />
-              <Bar 
-                dataKey="quantity" 
-                name="Quantity"
-              >
-                {chartData.map((entry, index) => {
-                  const color = COLORS[index % COLORS.length];
-                  return (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={getGradientColor(color)}
-                      stroke={color}
-                      strokeWidth={1}
-                      style={{
-                        filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.05))'
-                      }}
-                    />
-                  );
-                })}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+        <CardContent className="flex-1 min-h-0 flex flex-col">
+          <div className="overflow-y-auto flex-1">
+            <div style={{ height: `${totalHeight}px`, minHeight: '100%', position: 'relative' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  layout="vertical"
+                  data={chartData}
+                  margin={{
+                    top: 20,
+                    right: 30,
+                    left: 20,
+                    bottom: 25
+                  }}
+                  barSize={barHeight}
+                  barGap={barGap}
+                  barCategoryGap={8}
+                  className="bar-chart"
+                >
+                <defs>
+                  {COLORS.map((color) => (
+                    <linearGradient key={color} id={`gradient-${color.replace('#', '')}`} x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor={color} stopOpacity={0.8} />
+                      <stop offset="100%" stopColor={color} stopOpacity={0.4} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis type="number"
+                label={{ value: 'Quantity', position: 'insideBottom', offset: -15 }} />
+                <YAxis 
+                  dataKey="name" 
+                  type="category" 
+                  width={120}
+                  tick={{ fontSize: 12 }}
+                  tickMargin={5}
+                  interval={0}
+                  tickFormatter={(value) => {
+                    const maxLength = 30;
+                    return value.length > maxLength 
+                      ? `${value.substring(0, maxLength)}...` 
+                      : value;
+                  }}
+                  label={{
+                    value: 'Product Name',
+                    angle: -90,
+                    position: 'insideLeft',
+                    offset: -10,
+                    style: {
+                      textAnchor: 'middle'
+                    }
+                  }}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="quantity" name="Quantity">
+                  {chartData.map((entry, index) => {
+                    const color = COLORS[index % COLORS.length];
+                    return (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={getGradientColor(color)}
+                        stroke={color}
+                        strokeWidth={1}
+                        style={{
+                          filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.05))'
+                        }}
+                      />
+                    );
+                  })}
+                </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </CardContent>
       </Card>
       
-      {/* AI Review Component */}
       <DynamicProductQuantitiesReview data={data} />
     </div>
   );
