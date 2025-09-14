@@ -150,10 +150,11 @@ export default function GlobalUsageNotification() {
   };
 
   const remainingPercentage = 100 - usageData.usage_percentage;
+  const show95Label = usageData.usage_percentage < 97;
 
   return (
     <div className="fixed top-4 left-4 right-4 z-50 max-w-md mx-auto">
-      <Alert variant={getAlertVariant()} className="mb-4 shadow-lg">
+      <Alert variant={getAlertVariant()} className="mb-4 shadow-lg bg-white dark:bg-gray-900 border">
         <div className="flex items-start gap-3">
           {getAlertIcon()}
           <div className="flex-1">
@@ -192,7 +193,9 @@ export default function GlobalUsageNotification() {
                     <span className="absolute" style={{ left: '0%' }}>0%</span>
                     <span className="absolute" style={{ left: '50%', transform: 'translateX(-50%)' }}>50%</span>
                     <span className="absolute" style={{ left: '80%', transform: 'translateX(-50%)' }}>80%</span>
-                    <span className="absolute" style={{ left: '95%', transform: 'translateX(-50%)' }}>95%</span>
+                    {show95Label && (
+                      <span className="absolute" style={{ left: '95%', transform: 'translateX(-50%)' }}>95%</span>
+                    )}
                     <span className="absolute" style={{ right: '0%' }}>100%</span>
                   </div>
                 </div>

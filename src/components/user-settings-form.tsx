@@ -190,6 +190,32 @@ export default function UserSettingsForm({
     }
   };
 
+  // Compute usage percent and color class for the API usage bar
+  const safeLimit = Number(user.api_limit_per_month) || 0;
+  const used = Math.max(0, Number(user.api_usage_current_month) || 0);
+  const rawPercent = safeLimit > 0 ? (used / safeLimit) * 100 : 0;
+  const usagePercent = Math.min(Math.max(rawPercent, 0), 100);
+
+  // Map thresholds to Tailwind classes
+  // > 50% -> yellow, > 80% -> orange, > 95% -> red, = 100% -> red shaded with black
+  let usageColorClass = "bg-blue-600";
+  if (usagePercent >= 100) {
+    usageColorClass = "bg-red-700"; // base for 100% case; stripes added via inline style
+  } else if (usagePercent > 95) {
+    usageColorClass = "bg-red-600";
+  } else if (usagePercent > 80) {
+    usageColorClass = "bg-orange-500";
+  } else if (usagePercent > 50) {
+    usageColorClass = "bg-yellow-500";
+  }
+
+  const usageStripeStyle = usagePercent === 100
+    ? {
+        backgroundImage:
+          "repeating-linear-gradient(45deg, #b91c1c, #b91c1c 10px, #000000 10px, #000000 20px)",
+      }
+    : undefined;
+
   return (
     <div className="space-y-6">
       {/* Profile Information */}
@@ -391,12 +417,32 @@ export default function UserSettingsForm({
 
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                className={`${usageColorClass} h-2 rounded-full transition-all duration-300`}
                 style={{
-                  width: `${Math.min((user.api_usage_current_month / user.api_limit_per_month) * 100, 100)}%`,
+                  width: `${usagePercent}%`,
+                  ...(usageStripeStyle || {}),
                 }}
+                aria-label={`API usage ${Math.round(usagePercent)}%`}
+                title={`API usage ${Math.round(usagePercent)}%`}
               />
             </div>
+
+            {usagePercent >= 50 && (
+              <p className="text-xs mt-2 text-gray-600">
+                {usagePercent >= 100 && (
+                  <>You have reached 100% of your monthly API limit. Further calls will be blocked until your quota resets.</>
+                )}
+                {usagePercent > 95 && usagePercent < 100 && (
+                  <>Critical usage: {Math.round(usagePercent)}% used. You're almost out of quota ({Math.max(0, safeLimit - used)} remaining).</>
+                )}
+                {usagePercent > 80 && usagePercent <= 95 && (
+                  <>High usage: {Math.round(usagePercent)}% used. You're nearing your monthly limit ({Math.max(0, safeLimit - used)} remaining).</>
+                )}
+                {usagePercent > 50 && usagePercent <= 80 && (
+                  <>Moderate usage: {Math.round(usagePercent)}% used. Keep an eye on your remaining quota ({Math.max(0, safeLimit - used)} remaining).</>
+                )}
+              </p>
+            )}
 
             {/* <div className="flex items-center justify-between">
               <Label className="text-sm font-medium text-gray-500">

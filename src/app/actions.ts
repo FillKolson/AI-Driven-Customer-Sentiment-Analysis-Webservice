@@ -66,20 +66,30 @@ export const signUpAction = async (formData: FormData) => {
     },
   });
 
- // Check if email exists in public.users
-  const { data: userInPublic, error: publicUserError } = await supabase
-    .from("users")
-    .select("id")
-    .eq("email", email)
-    .single();
-
-  if (!userInPublic || publicUserError) {
-    return encodedRedirect(
-      "error",
-      "/sign-in",
-      "This email is already registered. Please sign in or use a different email."
-    );
+  // If Supabase reports any error during sign up, surface it as a field-level email error
+  if (error) {
+    return {
+      error: {
+        message: error.message || "This email is already registered. Please sign in or use a different email.",
+        field: "email",
+      },
+    } as const;
   }
+
+  // Supabase behavior: if a user with this email exists but is unconfirmed,
+  // signUp can return a user with empty identities array instead of an error.
+  // Treat this as an already-registered email to meet UX expectations.
+  if (user && Array.isArray((user as any).identities) && (user as any).identities.length === 0) {
+    return {
+      error: {
+        message: "This email is already registered. Please sign in or use a different email.",
+        field: "email",
+      },
+    } as const;
+  }
+
+  // Note: Do not check public.users here due to RLS preventing visibility pre-auth.
+  // Duplicate email is reliably surfaced via Supabase auth.signUp error above.
   
 
   // Always show the message to check email for verification

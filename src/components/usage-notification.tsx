@@ -162,9 +162,10 @@ export default function UsageNotification({
   };
 
   const remainingPercentage = 100 - usageData.usage_percentage;
+  const show95Label = usageData.usage_percentage < 97;
 
   return (
-    <Alert variant={getAlertVariant()} className="mb-4">
+    <Alert variant={getAlertVariant()} className="mb-4 bg-white dark:bg-gray-900 border">
       <div className="flex items-start gap-3">
         {getAlertIcon()}
         <div className="flex-1">
@@ -203,7 +204,9 @@ export default function UsageNotification({
                   <span className="absolute" style={{ left: '0%' }}>0%</span>
                   <span className="absolute" style={{ left: '50%', transform: 'translateX(-50%)' }}>50%</span>
                   <span className="absolute" style={{ left: '80%', transform: 'translateX(-50%)' }}>80%</span>
-                  <span className="absolute" style={{ left: '95%', transform: 'translateX(-50%)' }}>95%</span>
+                  {show95Label && (
+                    <span className="absolute" style={{ left: '95%', transform: 'translateX(-50%)' }}>95%</span>
+                  )}
                   <span className="absolute" style={{ right: '0%' }}>100%</span>
                 </div>
               </div>
