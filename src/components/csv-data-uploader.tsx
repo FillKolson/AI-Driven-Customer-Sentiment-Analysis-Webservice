@@ -20,6 +20,9 @@ interface UploadStatus {
 
 interface CsvDataUploaderProps {
   userId: string;
+  currentUsage?: number;
+  usageLimit?: number;
+  subscriptionStatus?: string;
 }
 
 const tableConfigs = [
@@ -60,7 +63,7 @@ const tableConfigs = [
   }
 ];
 
-export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
+export default function CsvDataUploader({ userId, currentUsage = 0, usageLimit = 100, subscriptionStatus = "free" }: CsvDataUploaderProps) {
   const [uploadStatuses, setUploadStatuses] = useState<Record<string, UploadStatus>>(
     tableConfigs.reduce((acc, config) => ({
       ...acc,
@@ -139,6 +142,35 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
         }
       }));
       return;
+    }
+
+    // Pre-check API usage limit only for sentiment analyses (this consumes API)
+    if (tableKey === 'sentiment_analyses') {
+      try {
+        const text = await status.file.text();
+        const nonEmptyLines = text.split('\n').filter(line => line.trim() !== '').length;
+        const tokensToUse = Math.max(0, nonEmptyLines - 1); // exclude header
+        if (currentUsage + tokensToUse > usageLimit) {
+          const remaining = Math.max(0, usageLimit - currentUsage);
+          setUploadStatuses(prev => ({
+            ...prev,
+            [tableKey]: {
+              ...prev[tableKey],
+              status: 'error',
+              message: `Insufficient API balance. This upload would use ${tokensToUse} calls, but you only have ${remaining} remaining.`
+            }
+          }));
+          toast({
+            title: "Insufficient API balance",
+            description: `This upload would use ${tokensToUse} API calls, but you only have ${remaining} remaining. Please upgrade your plan or reduce file size.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      } catch (e) {
+        // If we cannot read file for some reason, proceed without pre-check
+        console.error('Failed to pre-check usage from file:', e);
+      }
     }
 
     setUploadStatuses(prev => ({
@@ -282,6 +314,35 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
       }
     }
 
+    // Pre-check API usage limit for bulk upload (only sentiment file counts)
+    try {
+      const sentimentFile = uploadStatuses['sentiment_analyses']?.file || null;
+      if (sentimentFile) {
+        const text = await sentimentFile.text();
+        const nonEmptyLines = text.split('\n').filter(line => line.trim() !== '').length;
+        const tokensToUse = Math.max(0, nonEmptyLines - 1);
+        if (currentUsage + tokensToUse > usageLimit) {
+          const remaining = Math.max(0, usageLimit - currentUsage);
+          setUploadStatuses(prev => ({
+            ...prev,
+            ['sentiment_analyses']: {
+              ...prev['sentiment_analyses'],
+              status: 'error',
+              message: `Insufficient API balance. Bulk upload would use ${tokensToUse} calls for sentiments, but only ${remaining} remain.`
+            }
+          }));
+          toast({
+            title: 'Insufficient API balance',
+            description: `Bulk upload would use ${tokensToUse} API calls for sentiment analysis, but you only have ${remaining} remaining.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to pre-check usage for bulk upload:', e);
+    }
+
     // If we get here, all validations passed
     setIsBulkUploading(true);
     let uploadSuccess = true;
@@ -357,6 +418,19 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
         </div>
       </Alert>
 
+      {/* Usage info and warnings */}
+      <div className="flex flex-col gap-2">
+        <p className="text-sm text-gray-700">
+          API usage: <span className="font-medium">{currentUsage}</span> / <span className="font-medium">{usageLimit}</span> calls this month
+        </p>
+        {currentUsage >= usageLimit && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>You have exhausted your monthly API limit. Sentiment uploads are disabled.</AlertDescription>
+          </Alert>
+        )}
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="dataset-name">Dataset Name</Label>
         <Input
@@ -422,7 +496,7 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
                       type="file"
                       accept=".csv"
                       onChange={(e) => handleFileSelect(config.key, e.target.files?.[0] || null)}
-                      disabled={status.status === 'uploading' || isBulkUploading}
+                      disabled={status.status === 'uploading' || isBulkUploading || (config.key === 'sentiment_analyses' && currentUsage >= usageLimit)}
                       className="hidden"
                     />
                     {status.file && (
@@ -443,6 +517,11 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
                   <p className="text-xs text-gray-500">
                     Expected columns: {config.expectedColumns.join(', ')}
                   </p>
+                  {config.key === 'sentiment_analyses' && (
+                    <p className="text-xs text-gray-600">
+                      Note: Uploading sentiment data consumes API calls equal to the number of rows.
+                    </p>
+                  )}
                 </div>
 
                 {status.status === 'uploading' && (

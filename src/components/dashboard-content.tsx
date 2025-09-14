@@ -36,7 +36,12 @@ export default function DashboardContent({
         <div>
           {/* CSV Data Uploader */}
           <section className="mt-8">
-            <CsvDataUploader userId={userId} />
+            <CsvDataUploader 
+              userId={userId} 
+              currentUsage={currentUsage} 
+              usageLimit={usageLimit} 
+              subscriptionStatus={subscriptionStatus}
+            />
           </section>
         </div>
       </div>

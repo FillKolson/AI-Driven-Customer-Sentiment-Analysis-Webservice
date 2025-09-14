@@ -162,7 +162,33 @@ export async function POST(request: NextRequest) {
 
     // Read and parse CSV file
     const fileContent = await file.text();
-    
+
+    // Server-side usage limit enforcement for sentiment uploads
+    if (tableType === 'sentiment_analyses') {
+      // Fetch user's current usage and limit
+      const { data: profile, error: profileError } = await supabase
+        .from('users')
+        .select('api_usage_current_month, api_limit_per_month')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        return NextResponse.json({ error: 'Failed to fetch user usage profile' }, { status: 500 });
+      }
+
+      const currentUsage = profile?.api_usage_current_month ?? 0;
+      const usageLimit = profile?.api_limit_per_month ?? 100;
+      const nonEmptyLines = fileContent.split('\n').filter(line => line.trim() !== '').length;
+      const tokensToUse = Math.max(0, nonEmptyLines - 1); // exclude header
+
+      if (currentUsage + tokensToUse > usageLimit) {
+        const remaining = Math.max(0, usageLimit - currentUsage);
+        return NextResponse.json({
+          error: `Insufficient API balance. This upload would use ${tokensToUse} calls, but you only have ${remaining} remaining.`
+        }, { status: 402 });
+      }
+    }
+
     return new Promise((resolve) => {
       Papa.parse<CsvRow>(fileContent, {
         header: true,
