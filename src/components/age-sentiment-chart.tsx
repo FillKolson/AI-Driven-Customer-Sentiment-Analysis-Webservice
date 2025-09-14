@@ -101,7 +101,7 @@ const DynamicAgeSentimentReview = ({ data }: { data: AgeSentimentData[] }) => {
     <div className="mt-6 p-4 bg-white rounded-lg">
       <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Age Demographics Review</h4>
       <p className="text-sm text-gray-600 mb-3">
-        Analysis based on {insights.totalCustomers} customers across {insights.ageGroups} age groups
+        Analysis based on {insights.totalCustomers} sentiments across {insights.ageGroups} age groups
       </p>
       
       <div className="space-y-3 text-sm text-gray-700">
@@ -111,8 +111,8 @@ const DynamicAgeSentimentReview = ({ data }: { data: AgeSentimentData[] }) => {
           <p>
             Your customer base shows an average sentiment score of {insights.avgSentiment.toFixed(3)} across all age groups. 
             The {insights.bestPerformingAge.ageGroup} age group leads with {insights.bestPerformingAge.averageScore.toFixed(3)} sentiment score 
-            ({insights.bestPerformingAge.count} customers), while {insights.worstPerformingAge.ageGroup} shows the lowest at {insights.worstPerformingAge.averageScore.toFixed(3)} 
-            ({insights.worstPerformingAge.count} customers).
+            ({insights.bestPerformingAge.count} sentiments), while {insights.worstPerformingAge.ageGroup} shows the lowest at {insights.worstPerformingAge.averageScore.toFixed(3)} 
+            ({insights.worstPerformingAge.count} sentiments).
           </p>
         </div>
 
@@ -134,7 +134,7 @@ const DynamicAgeSentimentReview = ({ data }: { data: AgeSentimentData[] }) => {
         <div className="p-3 bg-green-50 rounded-lg border-l-4 border-green-400">
           <p className="font-medium text-green-800">🏆 Top Performing Age Group</p>
           <p>
-            The {insights.bestPerformingAge.ageGroup} age group ({insights.bestPerformingAge.count} customers) achieves the highest satisfaction 
+            The {insights.bestPerformingAge.ageGroup} age group ({insights.bestPerformingAge.count} sentiments) achieves the highest satisfaction 
             with a {insights.bestPerformingAge.averageScore.toFixed(3)} sentiment score. This represents 
             {((insights.bestPerformingAge.count / insights.totalCustomers) * 100).toFixed(1)}% of your customer base and serves as a 
             benchmark for service excellence across other age demographics.
