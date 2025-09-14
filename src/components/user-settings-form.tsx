@@ -427,6 +427,23 @@ export default function UserSettingsForm({
               />
             </div>
 
+            {usagePercent >= 50 && (
+              <p className="text-xs mt-2 text-gray-600">
+                {usagePercent >= 100 && (
+                  <>You have reached 100% of your monthly API limit. Further calls will be blocked until your quota resets.</>
+                )}
+                {usagePercent > 95 && usagePercent < 100 && (
+                  <>Critical usage: {Math.round(usagePercent)}% used. You're almost out of quota ({Math.max(0, safeLimit - used)} remaining).</>
+                )}
+                {usagePercent > 80 && usagePercent <= 95 && (
+                  <>High usage: {Math.round(usagePercent)}% used. You're nearing your monthly limit ({Math.max(0, safeLimit - used)} remaining).</>
+                )}
+                {usagePercent > 50 && usagePercent <= 80 && (
+                  <>Moderate usage: {Math.round(usagePercent)}% used. Keep an eye on your remaining quota ({Math.max(0, safeLimit - used)} remaining).</>
+                )}
+              </p>
+            )}
+
             {/* <div className="flex items-center justify-between">
               <Label className="text-sm font-medium text-gray-500">
                 Status
