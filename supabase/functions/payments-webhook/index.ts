@@ -211,7 +211,7 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
         subscription: null,
         subscription_status: FREE_PLAN_NAME,
       })
-      .eq('user_id', userId);
+      .or(`user_id.eq.${userId},id.eq.${userId}`);
 
     return new Response(
       JSON.stringify({ message: "Assigned free plan (no Stripe subscription stored)" }),
@@ -247,7 +247,7 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
       subscription: subscriptionRow?.id || null,
       subscription_status: planInfo.name,
     })
-    .eq('user_id', userId);
+    .or(`user_id.eq.${userId},id.eq.${userId}`);
 
   return new Response(
     JSON.stringify({ message: "Subscription created successfully" }),
@@ -319,7 +319,7 @@ async function handleSubscriptionDeleted(supabaseClient: any, event: any) {
           api_usage_current_month: 0,
           api_limit_per_month: FREE_PLAN_LIMIT
         })
-        .eq('user_id', userId);
+        .or(`user_id.eq.${userId},id.eq.${userId}`);
     } else if (subscription?.metadata?.email) {
       // Fallback: update by email if available
       await supabaseClient
@@ -500,6 +500,46 @@ async function handleInvoicePaymentSucceeded(supabaseClient: any, event: any) {
     await supabaseClient
       .from("webhook_events")
       .insert(webhookData);
+
+    // On successful invoice payment (renewal), reset monthly usage if we can map the plan
+    // and update the user's api limits accordingly.
+    // Determine plan from subscription.price_id if available.
+    const priceId = subscription?.price_id || invoice.lines?.data?.[0]?.price?.id;
+    const planInfo = priceId ? (PLAN_INFO[priceId] ?? null) : null;
+
+    // Find the associated user id using robust lookup, falling back to subscription.user_id
+    let resolvedUserId = await findUserId({
+      supabaseClient,
+      metadata: subscription?.metadata,
+      customerId: subscription?.customer_id || invoice.customer,
+      customerEmail: invoice.customer_email,
+    });
+
+    if (!resolvedUserId && subscription?.user_id) {
+      resolvedUserId = subscription.user_id;
+    }
+
+    if (resolvedUserId && planInfo) {
+      // Update users row; match either users.user_id or users.id to be resilient
+      const updatePayload: any = {
+        api_usage_current_month: 0,
+        api_limit_per_month: planInfo.limit,
+        subscription_status: planInfo.name,
+      };
+
+      const { error: userUpdErr } = await supabaseClient
+        .from('users')
+        .update(updatePayload)
+        .or(`user_id.eq.${resolvedUserId},id.eq.${resolvedUserId}`);
+
+      if (userUpdErr) {
+        console.error('Failed to reset usage on renewal:', userUpdErr);
+      } else {
+        console.log('Successfully reset usage and updated limits for user on renewal');
+      }
+    } else {
+      console.log('Skipping usage reset on renewal: no resolved user or unknown plan');
+    }
 
     return new Response(
       JSON.stringify({ message: "Invoice payment succeeded" }),

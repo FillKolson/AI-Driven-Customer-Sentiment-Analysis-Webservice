@@ -58,13 +58,24 @@ function SignupForm() {
 
   // Handle initial message from URL params
   useEffect(() => {
+    // Prefer explicit message/type if provided
     const message = searchParams?.get('message');
     const type = searchParams?.get('type');
     if (message && type) {
-      setServerError({
-        message,
-        type: type as 'error' | 'success',
-      });
+      setServerError({ message, type: type as 'error' | 'success' });
+      return;
+    }
+
+    // Also support encodedRedirect pattern: ?success=... or ?error=...
+    const successParam = searchParams?.get('success');
+    const errorParam = searchParams?.get('error');
+    if (successParam) {
+      setServerError({ message: successParam, type: 'success' });
+      return;
+    }
+    if (errorParam) {
+      setServerError({ message: errorParam, type: 'error' });
+      return;
     }
   }, [searchParams]);
 
@@ -135,10 +146,13 @@ function SignupForm() {
     }
   };
 
+  const isSuccess = serverError?.type === 'success';
+
   return (
     <>
       <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-8">
         <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-sm">
+          {!isSuccess ? (
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col space-y-6" noValidate>
             <div className="space-y-2 text-center">
               <h1 className="text-3xl font-semibold tracking-tight">Sign up</h1>
@@ -257,6 +271,20 @@ function SignupForm() {
               </div>
             )}
           </form>
+          ) : (
+            <div className="flex flex-col space-y-4 text-center">
+              <h2 className="text-2xl font-semibold">Check your email</h2>
+              <p className="text-sm text-muted-foreground">
+                {serverError?.message || 'Thanks for signing up! Please check your email for a verification link.'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Once your email is confirmed, you can sign in to continue.
+              </p>
+              <div>
+                <Link href="/sign-in" className="text-primary hover:underline font-medium">Go to Sign in</Link>
+              </div>
+            </div>
+          )}
         </div>
         <SmtpMessage />
       </div>
