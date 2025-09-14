@@ -306,7 +306,7 @@ export default function IncomeSentimentChart({ loading: externalLoading }: { loa
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={data}
-              margin={{ top: 5, right: 30, left: 15, bottom: 15 }}
+              margin={{ top: 5, right: 30, left: 15, bottom: 20 }}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis 
@@ -319,7 +319,7 @@ export default function IncomeSentimentChart({ loading: externalLoading }: { loa
                   //XD
                   return `$${num}`;
                 }}
-                label={{ value: 'Annual Income', position: 'insideBottom', offset: -15 }}
+                label={{ value: 'Annual Income ($k)', position: 'insideBottom', offset: -15 }}
               />
               <YAxis 
                 type="number" 

@@ -341,7 +341,7 @@ export default function SentimentProfitChart({ loading = false }: SentimentProfi
                   value: 'Sentiment score',
                   angle: -90,
                   position: 'insideLeft',
-                  offset: -5,
+                  offset: -3,
                   style: {
                     textAnchor: 'middle'
                   }

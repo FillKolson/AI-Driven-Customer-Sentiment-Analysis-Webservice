@@ -358,7 +358,7 @@ export default function SentimentPromotionChart({ loading = false }: SentimentPr
                   value: 'Sentiment score',
                   angle: -90,
                   position: 'insideLeft',
-                  offset: -10,
+                  offset: -5,
                   style: {
                     textAnchor: 'middle'
                   }

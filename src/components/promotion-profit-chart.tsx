@@ -348,7 +348,7 @@ export default function PromotionProfitChart({ loading: externalLoading }: { loa
         <div className="h-96">
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart
-              margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+              margin={{ top: 20, right: 20, bottom: 25, left: 20 }}
             >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
@@ -356,7 +356,7 @@ export default function PromotionProfitChart({ loading: externalLoading }: { loa
                 dataKey="promotion_spend" 
                 name="Promotion Spend"
                 tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
-                label={{ value: 'Promotion Spend ($)', position: 'insideBottom', offset: -5 }}
+                label={{ value: 'Promotion Spend ($)', position: 'insideBottom', offset: -15 }}
                 domain={['auto', 'auto']}
               />
               <YAxis 
@@ -364,12 +364,19 @@ export default function PromotionProfitChart({ loading: externalLoading }: { loa
                 dataKey="profit" 
                 name="Profit"
                 tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
-                label={{ value: 'Profit ($)', angle: -90, position: 'insideLeft' }}
+                label={{
+                  value: 'Profit ($)',
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: -10,
+                  style: {
+                    textAnchor: 'middle'
+                  }
+                }}
                 domain={['auto', 'auto']}
               />
               <ZAxis type="number" range={[100, 500]} />
               <Tooltip content={<CustomTooltip />} />
-              <Legend />
               <Scatter name="Branches" data={data}>
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -377,11 +384,7 @@ export default function PromotionProfitChart({ loading: externalLoading }: { loa
               </Scatter>
             </ScatterChart>
           </ResponsiveContainer>
-        </div>
-        <div className="mt-2 text-sm text-gray-500 text-center">
-          Each point represents a supermarket branch. Hover for details.
-        </div>
-        
+        </div>        
         {/* AI Review Component */}
         <DynamicPromotionProfitReview data={data} />
       </CardContent>
