@@ -133,7 +133,7 @@ const DynamicMonthlySentimentReview = ({ data }: { data: MonthlySentimentData[] 
     <div className="mt-6 p-4 bg-white rounded-lg">
       <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Monthly Sentiment Trends Analysis</h4>
       <p className="text-sm text-gray-600 mb-3">
-        Analysis based on {insights.totalCustomers} customers across {insights.totalMonths} months
+        Analysis based on {insights.totalCustomers} sentiments across {insights.totalMonths} months
       </p>
       
       <div className="space-y-3 text-sm text-gray-700">
@@ -143,8 +143,8 @@ const DynamicMonthlySentimentReview = ({ data }: { data: MonthlySentimentData[] 
           <p>
             Your monthly sentiment shows an average score of {insights.avgSentiment.toFixed(3)} with {review.trendDirection} trends. 
             {insights.bestMonth.month} achieved the highest satisfaction at {insights.bestMonth.averageScore.toFixed(3)} 
-            ({insights.bestMonth.count} customers), while {insights.worstMonth.month} recorded the lowest at {insights.worstMonth.averageScore.toFixed(3)} 
-            ({insights.worstMonth.count} customers).
+            ({insights.bestMonth.count} sentiments), while {insights.worstMonth.month} recorded the lowest at {insights.worstMonth.averageScore.toFixed(3)} 
+            ({insights.worstMonth.count} sentiments).
           </p>
         </div>
 
@@ -183,7 +183,7 @@ const DynamicMonthlySentimentReview = ({ data }: { data: MonthlySentimentData[] 
           <p className="font-medium text-purple-800">🏆 Peak Performance Insights</p>
           <p>
             {insights.bestMonth.month} represents your peak performance month with {insights.bestMonth.averageScore.toFixed(3)} sentiment score 
-            and {insights.bestMonth.count} customer interactions. This month achieved 
+            and {insights.bestMonth.count} interactions of customers. This month achieved 
             {((insights.bestMonth.averageScore - insights.avgSentiment) / insights.avgSentiment * 100).toFixed(1)}% above average performance, 
             providing a blueprint for replicating success across other months.
           </p>
@@ -252,7 +252,7 @@ export default function MonthlySentimentChart({ loading: externalLoading }: { lo
         <div className="bg-white p-4 border border-gray-200 rounded shadow-lg">
           <p className="font-semibold">{formatMonthYear(label)}</p>
           <p>Avg. Score: {data.averageScore.toFixed(3)}</p>
-          <p>Analyses: {data.count}</p>
+          <p>Sentiments: {data.count}</p>
         </div>
       );
     }
