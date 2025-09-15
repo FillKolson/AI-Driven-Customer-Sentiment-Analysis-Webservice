@@ -20,16 +20,12 @@ interface UploadStatus {
 
 interface CsvDataUploaderProps {
   userId: string;
+  currentUsage?: number;
+  usageLimit?: number;
+  subscriptionStatus?: string;
 }
 
 const tableConfigs = [
-  {
-    key: 'sentiment_analyses',
-    title: 'Sentiment Analyses',
-    description: 'Upload sentiment analysis data with customer feedback scores',
-    expectedColumns: ['sentiment_id', 'customer_id', 'supermarket_id', 'basket_id', 'sentiment_date', 'sentiment_score', 'confidence_level', 'sentiment_category'],
-    sampleFile: 'Sentiment_analysis.csv'
-  },
   {
     key: 'supermarket_branches',
     title: 'Supermarket Branches',
@@ -57,10 +53,17 @@ const tableConfigs = [
     description: 'Upload advertisement click-through rate optimization data',
     expectedColumns: ['supermarket_id', 'ad1', 'ad2', 'ad3', 'ad4', 'ad5', 'ad6', 'ad7', 'ad8', 'ad9', 'ad10'],
     sampleFile: 'Ads_CTR_Optimisation_Modified.csv'
+  },
+  {
+    key: 'sentiment_analyses',
+    title: 'Sentiment Analyses',
+    description: 'Upload sentiment analysis data with customer feedback scores',
+    expectedColumns: ['sentiment_id', 'customer_id', 'supermarket_id', 'basket_id', 'sentiment_date', 'sentiment_score', 'confidence_level', 'sentiment_category'],
+    sampleFile: 'Sentiment_analysis.csv'
   }
 ];
 
-export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
+export default function CsvDataUploader({ userId, currentUsage = 0, usageLimit = 100, subscriptionStatus = "free" }: CsvDataUploaderProps) {
   const [uploadStatuses, setUploadStatuses] = useState<Record<string, UploadStatus>>(
     tableConfigs.reduce((acc, config) => ({
       ...acc,
@@ -74,8 +77,9 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
   );
 
   const { toast } = useToast();
-  const [datasetName, setDatasetName] = useState<string>("");
-  const [isBulkUploading, setIsBulkUploading] = useState<boolean>(false);
+  const [datasetName, setDatasetName] = useState("");
+  const [datasetNameError, setDatasetNameError] = useState<string | null>(null);
+  const [isBulkUploading, setIsBulkUploading] = useState(false);
 
   const handleFileSelect = (tableKey: string, file: File | null) => {
     setUploadStatuses(prev => ({
@@ -138,6 +142,35 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
         }
       }));
       return;
+    }
+
+    // Pre-check API usage limit only for sentiment analyses (this consumes API)
+    if (tableKey === 'sentiment_analyses') {
+      try {
+        const text = await status.file.text();
+        const nonEmptyLines = text.split('\n').filter(line => line.trim() !== '').length;
+        const tokensToUse = Math.max(0, nonEmptyLines - 1); // exclude header
+        if (currentUsage + tokensToUse > usageLimit) {
+          const remaining = Math.max(0, usageLimit - currentUsage);
+          setUploadStatuses(prev => ({
+            ...prev,
+            [tableKey]: {
+              ...prev[tableKey],
+              status: 'error',
+              message: `Insufficient API balance. This upload would use ${tokensToUse} calls, but you only have ${remaining} remaining.`
+            }
+          }));
+          toast({
+            title: "Insufficient API balance",
+            description: `This upload would use ${tokensToUse} API calls, but you only have ${remaining} remaining. Please upgrade your plan or reduce file size.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      } catch (e) {
+        // If we cannot read file for some reason, proceed without pre-check
+        console.error('Failed to pre-check usage from file:', e);
+      }
     }
 
     setUploadStatuses(prev => ({
@@ -209,13 +242,10 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
   const uploadAllInOrder = async () => {
     // Validate dataset name
     if (!datasetName.trim()) {
-      toast({
-        title: 'Dataset name required',
-        description: 'Please enter a dataset name. It will be stored in the file_name column for all uploaded rows.',
-        variant: 'destructive',
-      });
+      setDatasetNameError("Dataset name is required");
       return;
     }
+    setDatasetNameError(null);
 
     // Required order
     const order = [
@@ -226,9 +256,28 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
       'sentiment_analyses',
     ];
 
-    // Ensure all required files are selected
+    // Reset all statuses first
+    setUploadStatuses(prev => {
+      const newStatuses = { ...prev };
+      order.forEach(key => {
+        if (newStatuses[key]) {
+          newStatuses[key] = {
+            ...newStatuses[key],
+            status: 'idle',
+            message: '',
+            progress: 0
+          };
+        }
+      });
+      return newStatuses;
+    });
+
+    // Check all files are selected and validate them first
     for (const key of order) {
-      if (!uploadStatuses[key]?.file) {
+      const file = uploadStatuses[key]?.file;
+      const config = tableConfigs.find(c => c.key === key);
+      
+      if (!file) {
         setUploadStatuses(prev => ({
           ...prev,
           [key]: {
@@ -237,19 +286,160 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
             message: 'Please select a CSV file before bulk upload.'
           }
         }));
-        toast({ title: 'Missing file', description: `Please select a file for ${key.replaceAll('_', ' ')}.`, variant: 'destructive' });
+        toast({ 
+          title: 'Missing file', 
+          description: `Please select a file for ${key.replaceAll('_', ' ')}.`, 
+          variant: 'destructive' 
+        });
         return;
+      }
+
+      // Validate file format
+      const isValid = await validateCsvFile(file, config?.expectedColumns || []);
+      if (!isValid) {
+        setUploadStatuses(prev => ({
+          ...prev,
+          [key]: {
+            ...prev[key],
+            status: 'error',
+            message: 'Invalid CSV format. Please check the column headers match the expected format.'
+          }
+        }));
+        toast({
+          title: 'Validation failed',
+          description: `${config?.title || 'A file'} CSV is invalid. Fix it before uploading.`,
+          variant: 'destructive',
+        });
+        return; // Abort bulk upload if any file is invalid
       }
     }
 
-    setIsBulkUploading(true);
+    // Pre-check API usage limit for bulk upload (only sentiment file counts)
     try {
-      for (const key of order) {
-        await uploadCsvData(key);
+      const sentimentFile = uploadStatuses['sentiment_analyses']?.file || null;
+      if (sentimentFile) {
+        const text = await sentimentFile.text();
+        const nonEmptyLines = text.split('\n').filter(line => line.trim() !== '').length;
+        const tokensToUse = Math.max(0, nonEmptyLines - 1);
+        if (currentUsage + tokensToUse > usageLimit) {
+          const remaining = Math.max(0, usageLimit - currentUsage);
+          setUploadStatuses(prev => ({
+            ...prev,
+            ['sentiment_analyses']: {
+              ...prev['sentiment_analyses'],
+              status: 'error',
+              message: `Insufficient API balance. Bulk upload would use ${tokensToUse} calls for sentiments, but only ${remaining} remain.`
+            }
+          }));
+          toast({
+            title: 'Insufficient API balance',
+            description: `Bulk upload would use ${tokensToUse} API calls for sentiment analysis, but you only have ${remaining} remaining.`,
+            variant: 'destructive',
+          });
+          return;
+        }
       }
-      toast({ title: 'Bulk upload complete', description: 'All tables were uploaded successfully in the required order.' });
     } catch (e) {
-      // uploadCsvData already toasts specific errors
+      console.error('Failed to pre-check usage for bulk upload:', e);
+    }
+
+    // If we get here, all validations passed
+    setIsBulkUploading(true);
+
+    try {
+      // Build a single FormData payload for bulk endpoint
+      const bulkForm = new FormData();
+      bulkForm.append('datasetName', datasetName.trim());
+      for (const key of order) {
+        const f = uploadStatuses[key]?.file;
+        if (f) bulkForm.append(key, f);
+      }
+
+      const response = await fetch('/api/csv-upload/bulk', {
+        method: 'POST',
+        body: bulkForm,
+      });
+
+      if (!response.ok) {
+        let message = 'Bulk upload failed';
+        let details: string[] | null = null;
+        try {
+          const err = await response.json();
+          message = err.error || message;
+          if (err.details && Array.isArray(err.details)) {
+            details = err.details as string[];
+          }
+        } catch {}
+
+        if (details && details.length > 0) {
+          // Map details to specific keys and set only those to error
+          const detailsByKey: Record<string, string[]> = {};
+          for (const d of details) {
+            // Expect prefix like "table_key: message"
+            const idx = d.indexOf(':');
+            if (idx > 0) {
+              const key = d.slice(0, idx).trim();
+              const msg = d.slice(idx + 1).trim();
+              if (!detailsByKey[key]) detailsByKey[key] = [];
+              detailsByKey[key].push(msg);
+            }
+          }
+
+          setUploadStatuses(prev => {
+            const next = { ...prev };
+            for (const key of Object.keys(detailsByKey)) {
+              if (order.includes(key as any)) {
+                next[key] = {
+                  ...next[key],
+                  status: 'error',
+                  progress: 0,
+                  message: `${message}: ${detailsByKey[key].slice(0, 3).join('; ')}`,
+                };
+              }
+            }
+            return next;
+          });
+        }
+
+        // Show toast, but do not overwrite statuses for unaffected inputs
+        toast({
+          title: 'Bulk upload failed',
+          description: details && details.length > 0 ? `${message}: ${details.slice(0, 5).join('; ')}` : message,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const result = await response.json();
+
+      // Success: update statuses per table with counts
+      setUploadStatuses(prev => {
+        const next = { ...prev };
+        const byKey: Record<string, number> = {};
+        if (Array.isArray(result.byTable)) {
+          for (const r of result.byTable) {
+            if (r && r.key) byKey[r.key] = r.inserted;
+          }
+        }
+        for (const key of order) {
+          next[key] = {
+            ...next[key],
+            status: 'success',
+            progress: 100,
+            message: `Successfully uploaded ${byKey[key] ?? 0} records`,
+          };
+        }
+        return next;
+      });
+
+      toast({
+        title: 'Bulk upload complete',
+        description: `All tables were uploaded successfully. Total inserted: ${result.totalInserted ?? ''}`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'An unexpected error occurred during bulk upload.';
+      // Do not mark all as error; just notify
+      toast({ title: 'Bulk upload failed', description: message, variant: 'destructive' });
     } finally {
       setIsBulkUploading(false);
     }
@@ -291,6 +481,19 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
         </div>
       </Alert>
 
+      {/* Usage info and warnings */}
+      <div className="flex flex-col gap-2">
+        <p className="text-sm text-gray-700">
+          API usage: <span className="font-medium">{currentUsage}</span> / <span className="font-medium">{usageLimit}</span> calls this month
+        </p>
+        {currentUsage >= usageLimit && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>You have exhausted your monthly API limit. Sentiment uploads are disabled.</AlertDescription>
+          </Alert>
+        )}
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="dataset-name">Dataset Name</Label>
         <Input
@@ -301,6 +504,11 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
           disabled={isBulkUploading}
           className="w-full"
         />
+        {datasetNameError && (
+          <p className="text-sm font-medium text-destructive">
+            {datasetNameError}
+          </p>
+        )}
         <div className="flex gap-2">
           <Button className="w-full" onClick={uploadAllInOrder} disabled={isBulkUploading}>
             {isBulkUploading ? (
@@ -337,18 +545,46 @@ export default function CsvDataUploader({ userId }: CsvDataUploaderProps) {
               
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor={`file-${config.key}`}>Select CSV File</Label>
-                  <Input
-                    id={`file-${config.key}`}
-                    type="file"
-                    accept=".csv"
-                    onChange={(e) => handleFileSelect(config.key, e.target.files?.[0] || null)}
-                    disabled={status.status === 'uploading' || isBulkUploading}
-                    className="cursor-pointer transition-colors hover:bg-blue-50 hover:border-blue-300"
-                  />
+                  <Label>CSV File</Label>
+                  <div className="flex items-center gap-2">
+                    <label
+                      htmlFor={`file-${config.key}`}
+                      className="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md cursor-pointer hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      {status.file ? status.file.name : 'Choose File'}
+                    </label>
+                    <input
+                      id={`file-${config.key}`}
+                      type="file"
+                      accept=".csv"
+                      onChange={(e) => handleFileSelect(config.key, e.target.files?.[0] || null)}
+                      disabled={status.status === 'uploading' || isBulkUploading || (config.key === 'sentiment_analyses' && currentUsage >= usageLimit)}
+                      className="hidden"
+                    />
+                    {status.file && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleFileSelect(config.key, null)}
+                        disabled={status.status === 'uploading' || isBulkUploading}
+                      >
+                        <span className="sr-only">Clear</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </Button>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500">
                     Expected columns: {config.expectedColumns.join(', ')}
                   </p>
+                  {config.key === 'sentiment_analyses' && (
+                    <p className="text-xs text-gray-600">
+                      Note: Uploading sentiment data consumes API calls equal to the number of rows.
+                    </p>
+                  )}
                 </div>
 
                 {status.status === 'uploading' && (

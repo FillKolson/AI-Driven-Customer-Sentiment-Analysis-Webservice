@@ -130,10 +130,10 @@ const DynamicMonthlySentimentReview = ({ data }: { data: MonthlySentimentData[] 
   const { insights } = review;
 
   return (
-    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+    <div className="mt-6 p-4 bg-white rounded-lg">
       <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Monthly Sentiment Trends Analysis</h4>
       <p className="text-sm text-gray-600 mb-3">
-        Analysis based on {insights.totalCustomers} customers across {insights.totalMonths} months
+        Analysis based on {insights.totalCustomers} sentiments across {insights.totalMonths} months
       </p>
       
       <div className="space-y-3 text-sm text-gray-700">
@@ -143,8 +143,8 @@ const DynamicMonthlySentimentReview = ({ data }: { data: MonthlySentimentData[] 
           <p>
             Your monthly sentiment shows an average score of {insights.avgSentiment.toFixed(3)} with {review.trendDirection} trends. 
             {insights.bestMonth.month} achieved the highest satisfaction at {insights.bestMonth.averageScore.toFixed(3)} 
-            ({insights.bestMonth.count} customers), while {insights.worstMonth.month} recorded the lowest at {insights.worstMonth.averageScore.toFixed(3)} 
-            ({insights.worstMonth.count} customers).
+            ({insights.bestMonth.count} sentiments), while {insights.worstMonth.month} recorded the lowest at {insights.worstMonth.averageScore.toFixed(3)} 
+            ({insights.worstMonth.count} sentiments).
           </p>
         </div>
 
@@ -183,7 +183,7 @@ const DynamicMonthlySentimentReview = ({ data }: { data: MonthlySentimentData[] 
           <p className="font-medium text-purple-800">🏆 Peak Performance Insights</p>
           <p>
             {insights.bestMonth.month} represents your peak performance month with {insights.bestMonth.averageScore.toFixed(3)} sentiment score 
-            and {insights.bestMonth.count} customer interactions. This month achieved 
+            and {insights.bestMonth.count} interactions of customers. This month achieved 
             {((insights.bestMonth.averageScore - insights.avgSentiment) / insights.avgSentiment * 100).toFixed(1)}% above average performance, 
             providing a blueprint for replicating success across other months.
           </p>
@@ -252,7 +252,7 @@ export default function MonthlySentimentChart({ loading: externalLoading }: { lo
         <div className="bg-white p-4 border border-gray-200 rounded shadow-lg">
           <p className="font-semibold">{formatMonthYear(label)}</p>
           <p>Avg. Score: {data.averageScore.toFixed(3)}</p>
-          <p>Analyses: {data.count}</p>
+          <p>Sentiments: {data.count}</p>
         </div>
       );
     }
@@ -363,7 +363,7 @@ export default function MonthlySentimentChart({ loading: externalLoading }: { lo
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={data}
-              margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+              margin={{ top: 20, right: 20, bottom: 20, left: 40 }}
               barCategoryGap="10%"
               onMouseEnter={() => {
                 // We'll rely on the Bar's onMouseEnter to set the active index
@@ -377,6 +377,7 @@ export default function MonthlySentimentChart({ loading: externalLoading }: { lo
                 tick={{ fontSize: 12 }}
                 tickMargin={10}
                 axisLine={false}
+                label={{ value: 'Month', position: 'insideBottom', offset: -15 }}
               />
               <YAxis 
                 domain={[0, 1]} 
@@ -386,12 +387,20 @@ export default function MonthlySentimentChart({ loading: externalLoading }: { lo
                 axisLine={false}
                 tickLine={false}
                 width={30}
+                label={{
+                  value: 'Sentiment score',
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: -25,
+                  style: {
+                    textAnchor: 'middle'
+                  }
+                }}
               />
               <Tooltip 
                 content={<CustomTooltip />} 
                 cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
               />
-              <Legend />
               <Bar 
                 dataKey="averageScore" 
                 name="Average Sentiment Score"
@@ -412,11 +421,7 @@ export default function MonthlySentimentChart({ loading: externalLoading }: { lo
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </div>
-        <div className="mt-4 text-sm text-gray-500 text-center">
-          Hover over bars to see customer count for each month
-        </div>
-        
+        </div>        
         {/* AI Review Component */}
         <DynamicMonthlySentimentReview data={data} />
       </CardContent>

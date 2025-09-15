@@ -61,14 +61,7 @@ export default function HistoryPage() {
     fetchDatasets();
   }, []);
 
-  // Auto-refresh data every 30 seconds to catch new analyses
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchAllAnalyses();
-    }, 30000); // 30 seconds
-
-    return () => clearInterval(interval);
-  }, []);
+  // Auto-refresh functionality has been removed as per user request
 
   const fetchDatasets = async () => {
     try {

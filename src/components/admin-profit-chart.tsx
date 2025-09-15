@@ -135,7 +135,7 @@ const DynamicAdminProfitReview = ({ data }: { data: BranchData[] }) => {
   const { insights } = review;
 
   return (
-    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+    <div className="mt-6 p-4 bg-white rounded-lg">
       <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Administration Efficiency Analysis</h4>
       <p className="text-sm text-gray-600 mb-3">
         Analysis based on {insights.totalBranches} branches with total administration spend of ${insights.totalAdminSpend.toLocaleString()}
@@ -355,7 +355,7 @@ export default function AdminProfitChart({ loading: externalLoading }: { loading
                 dataKey="administration_spend" 
                 name="Administration Spend"
                 tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
-                label={{ value: 'Administration Spend ($)', position: 'insideBottom', offset: -5 }}
+                label={{ value: 'Administration Spend ($)', position: 'insideBottom', offset: -15 }}
                 domain={['auto', 'auto']}
               />
               <YAxis 
@@ -363,12 +363,19 @@ export default function AdminProfitChart({ loading: externalLoading }: { loading
                 dataKey="profit" 
                 name="Profit"
                 tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
-                label={{ value: 'Profit ($)', angle: -90, position: 'insideLeft' }}
+                label={{
+                  value: 'Profit ($)',
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: -10,
+                  style: {
+                    textAnchor: 'middle'
+                  }
+                }}
                 domain={['auto', 'auto']}
               />
               <ZAxis type="number" range={[100, 500]} />
               <Tooltip content={<CustomTooltip />} />
-              <Legend />
               <Scatter name="Branches" data={data}>
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -377,10 +384,6 @@ export default function AdminProfitChart({ loading: externalLoading }: { loading
             </ScatterChart>
           </ResponsiveContainer>
         </div>
-        <div className="mt-2 text-sm text-gray-500 text-center">
-          Each point represents a supermarket branch. Hover for details.
-        </div>
-        
         {/* AI Review Component */}
         <DynamicAdminProfitReview data={data} />
       </CardContent>

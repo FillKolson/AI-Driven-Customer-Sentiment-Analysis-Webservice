@@ -5,6 +5,7 @@ import { createClient } from '../../../../../supabase/server';
 type SentimentResponse = {
   sentiment_score: number;
   customer: {
+    customer_id: string;
     annual_income: number;
   } | null;
 };
@@ -26,18 +27,18 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get sentiment scores with customer income in one query
-    const { data, error } = await supabase
+    // Get sentiment analyses for the current user with customer income information
+    const { data: sentimentData, error } = await supabase
       .from('sentiment_analyses')
       .select(`
         sentiment_score,
         customer:supermarket_customer_members!inner(
+          customer_id,
           annual_income
         )
       `)
+      .eq('user_id', user.id)
       .not('customer.annual_income', 'is', null);
-
-    const typedData = data as unknown as SentimentResponse[] | null;
 
     if (error) {
       console.error('Error fetching income sentiment data:', error);
@@ -47,40 +48,40 @@ export async function GET() {
       );
     }
 
-    // Group by exact income values
-    const incomeMap = new Map<number, { scores: number[], count: number }>();
-    
-    // First pass: collect all unique incomes and their sentiment scores
-    (typedData || []).forEach(item => {
-      if (item.customer?.annual_income === null || item.customer?.annual_income === undefined) return;
+    if (!sentimentData || sentimentData.length === 0) {
+      return NextResponse.json({ chartData: [] });
+    }
+
+    // Group by income values and track unique customers
+    const incomeMap = new Map<number, {
+      scores: number[],
+      customerIds: Set<string>
+    }>();
+
+    // Process each sentiment analysis
+    const typedData = sentimentData as unknown as SentimentResponse[];
+    typedData.forEach(item => {
+      const income = item.customer?.annual_income;
+      const customerId = item.customer?.customer_id;
       
-      const income = item.customer.annual_income;
+      if (income === null || income === undefined || !customerId) return;
+      
+      // Initialize income group if it doesn't exist
       if (!incomeMap.has(income)) {
-        incomeMap.set(income, { scores: [], count: 0 });
+        incomeMap.set(income, { scores: [], customerIds: new Set() });
       }
-      incomeMap.get(income)?.scores.push(item.sentiment_score);
-    });
-
-    // Second pass: count occurrences of each income
-    const { data: allCustomers } = await supabase
-      .from('supermarket_customer_members')
-      .select('annual_income')
-      .not('annual_income', 'is', null);
-
-    allCustomers?.forEach(({ annual_income }) => {
-      if (annual_income === null) return;
-      const entry = incomeMap.get(annual_income);
-      if (entry) {
-        entry.count++;
-      }
+      
+      const group = incomeMap.get(income)!;
+      group.scores.push(item.sentiment_score);
+      group.customerIds.add(customerId);
     });
 
     // Convert to array and calculate average sentiment
     const result = Array.from(incomeMap.entries())
-      .map(([income, { scores, count }]) => ({
+      .map(([income, { scores, customerIds }]) => ({
         incomeGroup: income.toString(),
         averageScore: scores.reduce((sum, score) => sum + score, 0) / scores.length,
-        count
+        count: customerIds.size // Count of unique customers with this income
       }))
       .sort((a, b) => parseInt(a.incomeGroup) - parseInt(b.incomeGroup));
 

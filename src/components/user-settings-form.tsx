@@ -29,25 +29,17 @@ interface UserData {
   bio?: string;
 }
 
-interface SubscriptionData {
-  plan_name: string;
-  status: string;
-  current_period_end: number;
-  cancel_at_period_end: boolean;
-}
-
 interface UserSettingsFormProps {
   user: UserData;
-  subscription: SubscriptionData | null;
 }
 
 export default function UserSettingsForm({
   user,
-  subscription,
 }: UserSettingsFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [preferencesLoading, setPreferencesLoading] = useState(true);
   const [errors, setErrors] = useState<{full_name?: string}>({});
+  const [unsubscribed, setUnsubscribed] = useState(false);
   const [formData, setFormData] = useState({
     full_name: user.full_name,
     email: user.email,
@@ -183,8 +175,8 @@ export default function UserSettingsForm({
     });
   };
 
-  const getPlanBadgeColor = (plan: string) => {
-    switch (plan.toLowerCase()) {
+  const getPlanBadgeColor = (status: string) => {
+    switch (status.toLowerCase()) {
       case "pro":
         return "bg-blue-100 text-blue-800";
       case "enterprise":
@@ -197,6 +189,32 @@ export default function UserSettingsForm({
         return "bg-gray-100 text-gray-800";
     }
   };
+
+  // Compute usage percent and color class for the API usage bar
+  const safeLimit = Number(user.api_limit_per_month) || 0;
+  const used = Math.max(0, Number(user.api_usage_current_month) || 0);
+  const rawPercent = safeLimit > 0 ? (used / safeLimit) * 100 : 0;
+  const usagePercent = Math.min(Math.max(rawPercent, 0), 100);
+
+  // Map thresholds to Tailwind classes
+  // > 50% -> yellow, > 80% -> orange, > 95% -> red, = 100% -> red shaded with black
+  let usageColorClass = "bg-blue-600";
+  if (usagePercent >= 100) {
+    usageColorClass = "bg-red-700"; // base for 100% case; stripes added via inline style
+  } else if (usagePercent > 95) {
+    usageColorClass = "bg-red-600";
+  } else if (usagePercent > 80) {
+    usageColorClass = "bg-orange-500";
+  } else if (usagePercent > 50) {
+    usageColorClass = "bg-yellow-500";
+  }
+
+  const usageStripeStyle = usagePercent === 100
+    ? {
+        backgroundImage:
+          "repeating-linear-gradient(45deg, #b91c1c, #b91c1c 10px, #000000 10px, #000000 20px)",
+      }
+    : undefined;
 
   return (
     <div className="space-y-6">
@@ -307,26 +325,34 @@ export default function UserSettingsForm({
                 Current Plan
               </Label>
               <div className="flex items-center gap-2">
-                {['free', 'pro', 'enterprise'].includes(subscription?.plan_name || '') &&
-                  // Hide Unsubscribe if already set to cancel at period end or canceled
-                  !subscription?.cancel_at_period_end && (
+                {user.subscription_status !== 'free' && (
+                  !unsubscribed ? (
                     <Button
                       size="sm"
                       variant="destructive"
-                      className="ml-2"
                       onClick={async () => {
                         setIsLoading(true);
                         try {
                           const res = await fetch('/api/user/unsubscribe', { method: 'POST' });
-                          if (!res.ok) throw new Error('Failed to unsubscribe');
-                          toast({ title: 'Unsubscribed', description: 'Your subscription has been cancelled.' });
-                          router.refresh();
+                          if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.error || 'Failed to unsubscribe');
+                          }
+                          setUnsubscribed(true);
+                          toast({ 
+                            title: 'Unsubscribed', 
+                            description: 'Auto-renewal turned off. You can use your plan until the period ends.'
+                          });
                         } catch (error) {
                           let message = 'Failed to unsubscribe';
                           if (error instanceof Error) {
                             message = error.message;
                           }
-                          toast({ title: 'Error', description: message, variant: 'destructive' });
+                          toast({ 
+                            title: 'Error', 
+                            description: message, 
+                            variant: 'destructive' 
+                          });
                         } finally {
                           setIsLoading(false);
                         }
@@ -334,22 +360,48 @@ export default function UserSettingsForm({
                     >
                       Unsubscribe
                     </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        setIsLoading(true);
+                        try {
+                          const res = await fetch('/api/user/restore-subscription', { method: 'POST' });
+                          const data = await res.json().catch(() => ({}));
+                          if (!res.ok) {
+                            throw new Error(data.error || 'Failed to restore subscription');
+                          }
+                          setUnsubscribed(false);
+                          toast({ title: 'Subscription restored', description: 'Auto-renewal turned back on.' });
+                        } catch (error) {
+                          let message = 'Failed to restore subscription';
+                          if (error instanceof Error) message = error.message;
+                          toast({ title: 'Error', description: message, variant: 'destructive' });
+                        } finally {
+                          setIsLoading(false);
+                        }
+                      }}
+                      className="ml-2"
+                    >
+                      Restore subscription
+                    </Button>
+                  )
                 )}
                 <Button
                   size="sm"
                   onClick={() => router.push('/pricing')}
                   className="ml-2"
                 >
-                  {subscription?.plan_name === 'none' ? (
-                    <span>Subscribe</span>
+                  {user.subscription_status === 'free' ? (
+                    <span>Upgrade</span>
                   ) : (
                     <span>Manage</span>
                   )}
                 </Button>
                 <span 
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPlanBadgeColor(subscription?.plan_name || "none")}`}
+                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPlanBadgeColor(user.subscription_status || 'none')}`}
                 >
-                  {(subscription?.plan_name || "none").toUpperCase()}
+                  {(user.subscription_status || 'NONE').toUpperCase()}
                 </span>
               </div>
             </div>
@@ -358,55 +410,48 @@ export default function UserSettingsForm({
               <Label className="text-sm font-medium text-gray-500">
                 API Usage This Month
               </Label>
-              {subscription?.plan_name === 'none' ? (
-                <span className="text-sm text-red-600 font-semibold">API access is unavailable without a subscription.</span>
-              ) : (
-                <span className="text-sm">
-                  {typeof user.api_usage_current_month === 'number' ? user.api_usage_current_month : 0} / {user.api_limit_per_month}
-                </span>
-              )}
+              <span className="text-sm">
+                {typeof user.api_usage_current_month === 'number' ? user.api_usage_current_month : 0} / {user.api_limit_per_month}
+              </span>
             </div>
 
-            {subscription?.plan_name !== 'none' && (
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${Math.min((user.api_usage_current_month / user.api_limit_per_month) * 100, 100)}%`,
-                  }}
-                />
-              </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className={`${usageColorClass} h-2 rounded-full transition-all duration-300`}
+                style={{
+                  width: `${usagePercent}%`,
+                  ...(usageStripeStyle || {}),
+                }}
+                aria-label={`API usage ${Math.round(usagePercent)}%`}
+                title={`API usage ${Math.round(usagePercent)}%`}
+              />
+            </div>
+
+            {usagePercent >= 50 && (
+              <p className="text-xs mt-2 text-gray-600">
+                {usagePercent >= 100 && (
+                  <>You have reached 100% of your monthly API limit. Further calls will be blocked until your quota resets.</>
+                )}
+                {usagePercent > 95 && usagePercent < 100 && (
+                  <>Critical usage: {Math.round(usagePercent)}% used. You're almost out of quota ({Math.max(0, safeLimit - used)} remaining).</>
+                )}
+                {usagePercent > 80 && usagePercent <= 95 && (
+                  <>High usage: {Math.round(usagePercent)}% used. You're nearing your monthly limit ({Math.max(0, safeLimit - used)} remaining).</>
+                )}
+                {usagePercent > 50 && usagePercent <= 80 && (
+                  <>Moderate usage: {Math.round(usagePercent)}% used. Keep an eye on your remaining quota ({Math.max(0, safeLimit - used)} remaining).</>
+                )}
+              </p>
             )}
 
-            {subscription && subscription.current_period_end ? (
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium text-gray-500">
-                  {subscription.cancel_at_period_end
-                    ? 'Subscription ends at'
-                    : 'Next Billing Date'}
-                </Label>
-                <div className="flex flex-col items-end">
-                  <span className="text-sm">
-                    {new Date(
-                      subscription.current_period_end * 1000,
-                    ).toLocaleDateString()}
-                  </span>
-                  {(() => {
-                    const now = Date.now();
-                    const end = subscription.current_period_end * 1000;
-                    const diffDays = (end - now) / (1000 * 60 * 60 * 24);
-                    if (diffDays < 7 && diffDays > 0) {
-                      return (
-                        <span className="text-sm text-red-600 font-semibold mt-1">
-                          Payment is coming soon!
-                        </span>
-                      );
-                    }
-                    return null;
-                  })()}
-                </div>
-              </div>
-            ) : null}
+            {/* <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium text-gray-500">
+                Status
+              </Label>
+              <span className="text-sm capitalize">
+                {user.subscription_status || 'Inactive'}
+              </span>
+            </div> */}
           </div>
         </CardContent>
       </Card>

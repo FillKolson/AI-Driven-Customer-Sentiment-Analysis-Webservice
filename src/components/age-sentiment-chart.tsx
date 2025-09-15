@@ -98,10 +98,10 @@ const DynamicAgeSentimentReview = ({ data }: { data: AgeSentimentData[] }) => {
   const { insights } = review;
 
   return (
-    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+    <div className="mt-6 p-4 bg-white rounded-lg">
       <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Age Demographics Review</h4>
       <p className="text-sm text-gray-600 mb-3">
-        Analysis based on {insights.totalCustomers} customers across {insights.ageGroups} age groups
+        Analysis based on {insights.totalCustomers} sentiments across {insights.ageGroups} age groups
       </p>
       
       <div className="space-y-3 text-sm text-gray-700">
@@ -111,8 +111,8 @@ const DynamicAgeSentimentReview = ({ data }: { data: AgeSentimentData[] }) => {
           <p>
             Your customer base shows an average sentiment score of {insights.avgSentiment.toFixed(3)} across all age groups. 
             The {insights.bestPerformingAge.ageGroup} age group leads with {insights.bestPerformingAge.averageScore.toFixed(3)} sentiment score 
-            ({insights.bestPerformingAge.count} customers), while {insights.worstPerformingAge.ageGroup} shows the lowest at {insights.worstPerformingAge.averageScore.toFixed(3)} 
-            ({insights.worstPerformingAge.count} customers).
+            ({insights.bestPerformingAge.count} sentiments), while {insights.worstPerformingAge.ageGroup} shows the lowest at {insights.worstPerformingAge.averageScore.toFixed(3)} 
+            ({insights.worstPerformingAge.count} sentiments).
           </p>
         </div>
 
@@ -134,7 +134,7 @@ const DynamicAgeSentimentReview = ({ data }: { data: AgeSentimentData[] }) => {
         <div className="p-3 bg-green-50 rounded-lg border-l-4 border-green-400">
           <p className="font-medium text-green-800">🏆 Top Performing Age Group</p>
           <p>
-            The {insights.bestPerformingAge.ageGroup} age group ({insights.bestPerformingAge.count} customers) achieves the highest satisfaction 
+            The {insights.bestPerformingAge.ageGroup} age group ({insights.bestPerformingAge.count} sentiments) achieves the highest satisfaction 
             with a {insights.bestPerformingAge.averageScore.toFixed(3)} sentiment score. This represents 
             {((insights.bestPerformingAge.count / insights.totalCustomers) * 100).toFixed(1)}% of your customer base and serves as a 
             benchmark for service excellence across other age demographics.
@@ -200,7 +200,7 @@ export default function AgeSentimentChart({ loading: externalLoading }: { loadin
         <div className="bg-white p-4 border border-gray-200 rounded shadow-lg">
           <p className="font-semibold">Age: {data.ageGroup}</p>
           <p>Avg. Sentiment: {data.averageScore.toFixed(2)}</p>
-          <p>Customers: {data.count}</p>
+          <p>Sentiments: {data.count}</p>
         </div>
       );
     }
@@ -278,7 +278,7 @@ export default function AgeSentimentChart({ loading: externalLoading }: { loadin
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={data}
-              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              margin={{ top: 5, right: 30, left: 20, bottom: 15 }}
               layout="horizontal"
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -286,6 +286,7 @@ export default function AgeSentimentChart({ loading: externalLoading }: { loadin
                 dataKey="ageGroup" 
                 type="category" 
                 tick={{ fontSize: 14 }}
+                label={{ value: 'Age Group', position: 'insideBottom', offset: -10 }}
               />
               <YAxis 
                 type="number" 
@@ -293,6 +294,15 @@ export default function AgeSentimentChart({ loading: externalLoading }: { loadin
                 tickCount={6}
                 tickFormatter={(value) => value.toFixed(1)}
                 width={60}
+                label={{
+                  value: 'Sentiment score',
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: -5,
+                  style: {
+                    textAnchor: 'middle'
+                  }
+                }}
               />
               <Tooltip content={<CustomTooltip />} />
               <Bar 
@@ -304,10 +314,6 @@ export default function AgeSentimentChart({ loading: externalLoading }: { loadin
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="mt-4 text-sm text-gray-500 text-center">
-          Hover over bars to see customer count
-        </div>
-        
         {/* AI Review Component */}
         <DynamicAgeSentimentReview data={data} />
       </CardContent>

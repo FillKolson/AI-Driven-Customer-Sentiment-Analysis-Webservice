@@ -50,6 +50,7 @@ function SignupForm() {
     formState: { errors },
     setError: setFormError,
     clearErrors,
+    setFocus,
   } = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     mode: "onChange",
@@ -57,13 +58,24 @@ function SignupForm() {
 
   // Handle initial message from URL params
   useEffect(() => {
+    // Prefer explicit message/type if provided
     const message = searchParams?.get('message');
     const type = searchParams?.get('type');
     if (message && type) {
-      setServerError({
-        message,
-        type: type as 'error' | 'success',
-      });
+      setServerError({ message, type: type as 'error' | 'success' });
+      return;
+    }
+
+    // Also support encodedRedirect pattern: ?success=... or ?error=...
+    const successParam = searchParams?.get('success');
+    const errorParam = searchParams?.get('error');
+    if (successParam) {
+      setServerError({ message: successParam, type: 'success' });
+      return;
+    }
+    if (errorParam) {
+      setServerError({ message: errorParam, type: 'error' });
+      return;
     }
   }, [searchParams]);
 
@@ -80,22 +92,48 @@ function SignupForm() {
     
     try {
       const result = await signUpAction(formData);
-      if (result) {
+      // If server action returns a string, treat it as a redirect URL
+      if (typeof result === 'string') {
         router.push(result);
+        return;
+      }
+
+      // If server action returns a structured error, show it inline
+      if (result && typeof result === 'object' && 'error' in result) {
+        const err = (result as { error: { message: string; field?: string } }).error;
+        setServerError({ message: err.message, type: 'error', field: err.field });
+        if (err.field) {
+          setFormError(err.field as keyof z.infer<typeof formSchema>, {
+            type: 'manual',
+            message: err.message,
+          });
+          // Bring user attention to the field with the error
+          setFocus(err.field as keyof z.infer<typeof formSchema>);
+        }
+        return;
       }
     } catch (error) {
       if (error && typeof error === 'object' && 'message' in error) {
         const err = error as ServerResponse;
+        const lower = (err.message || '').toLowerCase();
         setServerError({
           message: err.message,
           type: 'error',
+          field: err.field,
         });
         
         if (err.field) {
           setFormError(err.field as keyof z.infer<typeof formSchema>, {
-            type: "server",
+            type: "manual",
             message: err.message,
           });
+          setFocus(err.field as keyof z.infer<typeof formSchema>);
+        } else if (lower.includes('already') && lower.includes('register')) {
+          setFormError('email', {
+            type: 'manual',
+            message: err.message,
+          });
+          setFocus('email');
         }
       } else {
         setServerError({
@@ -108,10 +146,13 @@ function SignupForm() {
     }
   };
 
+  const isSuccess = serverError?.type === 'success';
+
   return (
     <>
       <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-8">
         <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-sm">
+          {!isSuccess ? (
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col space-y-6" noValidate>
             <div className="space-y-2 text-center">
               <h1 className="text-3xl font-semibold tracking-tight">Sign up</h1>
@@ -153,12 +194,15 @@ function SignupForm() {
                   id="email"
                   type="email"
                   placeholder="you@example.com"
-                  className={cn("w-full", errors.email && "border-destructive")}
+                  className={cn(
+                    "w-full",
+                    (errors.email || serverError?.field === 'email') && "border-destructive"
+                  )}
                   {...register("email")}
                 />
-                {errors.email && (
+                {(errors.email || serverError?.field === 'email' || (serverError?.type === 'error' && (serverError.message.toLowerCase().includes('already') && serverError.message.toLowerCase().includes('register')))) && (
                   <p className="text-sm text-destructive mt-1">
-                    {errors.email.message}
+                    {errors.email?.message || serverError?.message}
                   </p>
                 )}
               </div>
@@ -227,6 +271,20 @@ function SignupForm() {
               </div>
             )}
           </form>
+          ) : (
+            <div className="flex flex-col space-y-4 text-center">
+              <h2 className="text-2xl font-semibold">Check your email</h2>
+              <p className="text-sm text-muted-foreground">
+                {serverError?.message || 'Thanks for signing up! Please check your email for a verification link.'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Once your email is confirmed, you can sign in to continue.
+              </p>
+              <div>
+                <Link href="/sign-in" className="text-primary hover:underline font-medium">Go to Sign in</Link>
+              </div>
+            </div>
+          )}
         </div>
         <SmtpMessage />
       </div>

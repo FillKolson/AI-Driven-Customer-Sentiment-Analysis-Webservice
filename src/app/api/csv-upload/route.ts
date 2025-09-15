@@ -162,7 +162,33 @@ export async function POST(request: NextRequest) {
 
     // Read and parse CSV file
     const fileContent = await file.text();
-    
+
+    // Server-side usage limit enforcement for sentiment uploads
+    if (tableType === 'sentiment_analyses') {
+      // Fetch user's current usage and limit
+      const { data: profile, error: profileError } = await supabase
+        .from('users')
+        .select('api_usage_current_month, api_limit_per_month')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        return NextResponse.json({ error: 'Failed to fetch user usage profile' }, { status: 500 });
+      }
+
+      const currentUsage = profile?.api_usage_current_month ?? 0;
+      const usageLimit = profile?.api_limit_per_month ?? 100;
+      const nonEmptyLines = fileContent.split('\n').filter(line => line.trim() !== '').length;
+      const tokensToUse = Math.max(0, nonEmptyLines - 1); // exclude header
+
+      if (currentUsage + tokensToUse > usageLimit) {
+        const remaining = Math.max(0, usageLimit - currentUsage);
+        return NextResponse.json({
+          error: `Insufficient API balance. This upload would use ${tokensToUse} calls, but you only have ${remaining} remaining.`
+        }, { status: 402 });
+      }
+    }
+
     return new Promise((resolve) => {
       Papa.parse<CsvRow>(fileContent, {
         header: true,
@@ -227,63 +253,63 @@ export async function POST(request: NextRequest) {
               return;
             }
 
-            // Insert new data in batches (attach metadata columns when present)
-            const batchSize = 100;
-            let totalInserted = 0;
+            // If any row had validation errors, abort without inserting anything
+            if (errors.length > 0) {
+              resolve(NextResponse.json({
+                error: 'Validation failed. No rows were inserted.',
+                details: errors.slice(0, 20)
+              }, { status: 400 }));
+              return;
+            }
 
-            for (let i = 0; i < transformedRows.length; i += batchSize) {
-              const batch = transformedRows.slice(i, i + batchSize);
+            // Perform a single bulk insert to ensure atomicity per file
+            const payloadWithMeta = transformedRows.map((r: any) => ({
+              ...r,
+              user_id: user.id,
+              file_name: datasetName ?? file.name,
+            }));
 
-              // First try with user_id and file_name (for multi-tenant schemas)
-              const batchWithMeta = batch.map((r: any) => ({
-                ...r,
-                user_id: user.id,
-                file_name: datasetName ?? file.name,
-              }));
+            let attempt = 0;
+            let currentPayload: any[] = payloadWithMeta;
+            let insertErrorMsg: string | null = null;
 
-              let insertErrorMsg: string | null = null;
-              let attempt = 0;
-              let currentPayload: any[] = batchWithMeta;
+            while (attempt < 3) {
+              const { error: insertError } = await supabase
+                .from(config.tableName)
+                .insert(currentPayload);
 
-              while (attempt < 3) {
-                const { error: insertError } = await supabase
-                  .from(config.tableName)
-                  .insert(currentPayload);
-
-                if (!insertError) {
-                  // success
-                  break;
-                }
-
-                insertErrorMsg = insertError.message || String(insertError);
-
-                // If table lacks user_id or file_name columns, strip and retry
-                if (insertErrorMsg.includes('column "user_id" does not exist') && attempt === 0) {
-                  currentPayload = currentPayload.map((r) => {
-                    const { user_id, ...rest } = r as any;
-                    return rest;
-                  });
-                  attempt++;
-                  continue;
-                }
-                if (insertErrorMsg.includes('column "file_name" does not exist') && attempt <= 1) {
-                  currentPayload = currentPayload.map((r) => {
-                    const { file_name, ...rest } = r as any;
-                    return rest;
-                  });
-                  attempt++;
-                  continue;
-                }
-
-                console.error('Insert error:', insertErrorMsg);
-                resolve(NextResponse.json({ 
-                  error: `Failed to insert batch starting at row ${i + 1}: ${insertErrorMsg}` 
-                }, { status: 500 }));
-                return;
+              if (!insertError) {
+                break; // success
               }
 
-              totalInserted += batch.length;
+              insertErrorMsg = insertError.message || String(insertError);
+
+              // If table lacks user_id or file_name columns, strip and retry
+              if (insertErrorMsg.includes('column "user_id" does not exist') && attempt === 0) {
+                currentPayload = currentPayload.map((r) => {
+                  const { user_id, ...rest } = r as any;
+                  return rest;
+                });
+                attempt++;
+                continue;
+              }
+              if (insertErrorMsg.includes('column "file_name" does not exist') && attempt <= 1) {
+                currentPayload = currentPayload.map((r) => {
+                  const { file_name, ...rest } = r as any;
+                  return rest;
+                });
+                attempt++;
+                continue;
+              }
+
+              console.error('Insert error:', insertErrorMsg);
+              resolve(NextResponse.json({
+                error: `Failed to insert data: ${insertErrorMsg}`
+              }, { status: 500 }));
+              return;
             }
+
+            const totalInserted = transformedRows.length;
 
             // Calculate tokens based on data rows (excluding header) for sentiment_analyses table only
             let tokensUsed = 0;

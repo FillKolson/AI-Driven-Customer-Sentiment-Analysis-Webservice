@@ -1,6 +1,7 @@
 "use client";
 
 import { User } from "@supabase/supabase-js";
+import { useState } from "react";
 import { Button } from "./ui/button";
 import {
     Card,
@@ -12,14 +13,50 @@ import {
 } from "./ui/card";
 import { Check } from "lucide-react";
 import { supabase } from "../../supabase/supabase";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "./ui/alert-dialog";
 
 export default function PricingCard({ item, user, currentSubscription }: {
     item: any,
     user: User | null,
     currentSubscription?: any
 }) {
+    const [showUnusedBalanceWarning, setShowUnusedBalanceWarning] = useState(false);
+    const [pendingPriceId, setPendingPriceId] = useState<string | null>(null);
+    const [remainingThisMonth, setRemainingThisMonth] = useState<number>(0);
+    const [usageLimit, setUsageLimit] = useState<number>(0);
+    const [isProcessing, setIsProcessing] = useState(false);
+
     // Handle checkout process
     const handleCheckout = async (priceId: string) => {
+        // For free plan, activate via Edge Function then redirect
+        if (priceId === 'free_plan') {
+            if (!user) {
+                window.location.href = "/sign-up?redirect=dashboard";
+                return;
+            }
+
+            try {
+                const { data, error } = await supabase.functions.invoke('supabase-functions-activate-free-plan', {
+                    body: { user_id: user.id, email: user.email },
+                });
+                if (error) throw error;
+                // On success, go to dashboard
+                window.location.href = "/dashboard";
+            } catch (err) {
+                console.error('Error activating free plan:', err);
+            }
+            return;
+        }
+
         if (!user) {
             // Redirect to sign-in if user is not authenticated
             window.location.href = "/sign-in?redirect=pricing";
@@ -53,29 +90,67 @@ export default function PricingCard({ item, user, currentSubscription }: {
         }
     };
 
-    const isFreePlan = item.amount === 0 || item.amount === null;
+    const isFreePlan = item.price_id === 'free_plan' || item.amount === 0 || item.amount === null;
     
     // Check if this is the user's current plan
-    const isCurrentPlan = currentSubscription && 
-        (currentSubscription.plan === item.price_id || 
-         (isFreePlan && currentSubscription.status === 'null'));
+    const isCurrentPlan = currentSubscription && (
+        currentSubscription.plan === item.price_id || 
+        (isFreePlan && (!currentSubscription.plan || currentSubscription.status === 'free'))
+    );
 
-    // Determine button text based on plan name
+    // Determine button text based on plan name and user status
     const getButtonText = () => {
         if (isCurrentPlan) {
-            return "Your current plan";
+            return isFreePlan ? "Your current plan" : "Your current plan";
         }
         
-        const planName = item.name.toLowerCase();
-        if (planName.includes('free')) {
-            return "Get Free";
-        } else if (planName.includes('pro')) {
-            return "Get Pro";
-        } else if (planName.includes('enterprise')) {
-            return "Get Enterprise";
-        } else {
-            // Fallback to plan name or generic text
-            return `Get ${item.name}`;
+        if (isFreePlan) {
+            return user ? "Get free" : "Get started for free";
+        }
+        
+        // For paid plans
+        return `Get ${item.name}`;
+    };
+
+    // Before checkout, warn if user is currently on a paid plan and has unused API balance this month
+    const checkUnusedBalanceAndProceed = async (priceId: string) => {
+        try {
+            const currentlyPaid = !!currentSubscription && currentSubscription.status && currentSubscription.status !== 'free';
+
+            // If user not logged in or currently not on a paid plan, proceed as before
+            if (!user || !currentlyPaid) {
+                await handleCheckout(priceId);
+                return;
+            }
+
+            setIsProcessing(true);
+            const res = await fetch('/api/user/usage');
+            if (!res.ok) {
+                // If we can't fetch usage, proceed as before
+                setIsProcessing(false);
+                await handleCheckout(priceId);
+                return;
+            }
+            const usage = await res.json();
+            const used = usage?.current_month_usage ?? 0;
+            const limit = usage?.limit ?? 0;
+            const remaining = Math.max(0, (limit || 0) - (used || 0));
+
+            setIsProcessing(false);
+
+            // Show warning if there is some remaining balance this month
+            if (limit > 0 && remaining > 0) {
+                setUsageLimit(limit);
+                setRemainingThisMonth(remaining);
+                setPendingPriceId(priceId);
+                setShowUnusedBalanceWarning(true);
+            } else {
+                await handleCheckout(priceId);
+            }
+        } catch (e) {
+            console.error('Pre-check usage failed, proceeding to checkout:', e);
+            setIsProcessing(false);
+            await handleCheckout(priceId);
         }
     };
 
@@ -119,20 +194,52 @@ export default function PricingCard({ item, user, currentSubscription }: {
                 <Button
                     onClick={async () => {
                         if (!isCurrentPlan) {
-                            await handleCheckout(item.price_id)
+                            await checkUnusedBalanceAndProceed(item.price_id);
                         }
                     }}
                     disabled={isCurrentPlan}
                     className={`w-full py-6 text-lg font-medium ${
                         isCurrentPlan 
                             ? 'bg-gray-400 text-gray-600 cursor-not-allowed hover:bg-gray-400' 
-                            : item.popular 
-                                ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700' 
-                                : 'bg-gray-900 hover:bg-gray-800'
+                            : isFreePlan
+                                ? 'bg-green-600 hover:bg-green-700 text-white'
+                                : item.popular 
+                                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700' 
+                                    : 'bg-gray-900 hover:bg-gray-800'
                     }`}
                 >
                     {getButtonText()}
                 </Button>
+
+                {/* Warning dialog about losing unused API balance when changing paid plans mid-cycle */}
+                <AlertDialog open={showUnusedBalanceWarning} onOpenChange={setShowUnusedBalanceWarning}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Unused API balance this month</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                You still have {remainingThisMonth} out of {usageLimit} API calls remaining for this billing cycle. If you continue to change your plan now, your unused API balance for this month may be lost or not carried over.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                                disabled={isProcessing}
+                                onClick={async () => {
+                                    try {
+                                        setShowUnusedBalanceWarning(false);
+                                        if (pendingPriceId) {
+                                            await handleCheckout(pendingPriceId);
+                                        }
+                                    } finally {
+                                        setPendingPriceId(null);
+                                    }
+                                }}
+                            >
+                                Continue to payment
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </CardFooter>
         </Card>
     )

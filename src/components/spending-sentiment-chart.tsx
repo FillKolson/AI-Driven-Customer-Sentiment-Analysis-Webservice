@@ -122,10 +122,10 @@ const DynamicSpendingSentimentReview = ({ data }: { data: SpendingSentimentData[
   const { insights } = review;
 
   return (
-    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+    <div className="mt-6 p-4 bg-white rounded-lg">
       <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Spending Behavior Review</h4>
       <p className="text-sm text-gray-600 mb-3">
-        Analysis based on {insights.totalCustomers} customers across {insights.spendingGroups} spending score groups
+        Analysis based on {insights.totalCustomers} sentiments across {insights.spendingGroups} spending score groups
       </p>
       
       <div className="space-y-3 text-sm text-gray-700">
@@ -135,8 +135,8 @@ const DynamicSpendingSentimentReview = ({ data }: { data: SpendingSentimentData[
           <p>
             Your customer base shows an average sentiment score of {insights.avgSentiment.toFixed(3)} across all spending groups. 
             Spending group {insights.bestSpendingGroup.spendingGroup} leads with {insights.bestSpendingGroup.averageScore.toFixed(3)} sentiment score 
-            ({insights.bestSpendingGroup.count} customers), while group {insights.worstSpendingGroup.spendingGroup} shows the lowest at {insights.worstSpendingGroup.averageScore.toFixed(3)} 
-            ({insights.worstSpendingGroup.count} customers).
+            ({insights.bestSpendingGroup.count} sentiments), while group {insights.worstSpendingGroup.spendingGroup} shows the lowest at {insights.worstSpendingGroup.averageScore.toFixed(3)} 
+            ({insights.worstSpendingGroup.count} sentiments).
           </p>
         </div>
 
@@ -159,7 +159,7 @@ const DynamicSpendingSentimentReview = ({ data }: { data: SpendingSentimentData[
         <div className="p-3 bg-green-50 rounded-lg border-l-4 border-green-400">
           <p className="font-medium text-green-800">🏆 Top Performing Spending Group</p>
           <p>
-            Spending group {insights.bestSpendingGroup.spendingGroup} ({insights.bestSpendingGroup.count} customers) achieves the highest satisfaction 
+            Spending group {insights.bestSpendingGroup.spendingGroup} ({insights.bestSpendingGroup.count} sentiments) achieves the highest satisfaction 
             with a {insights.bestSpendingGroup.averageScore.toFixed(3)} sentiment score. This represents 
             {((insights.bestSpendingGroup.count / insights.totalCustomers) * 100).toFixed(1)}% of your customer base and demonstrates 
             optimal value perception in this spending segment.
@@ -228,7 +228,7 @@ export default function SpendingSentimentChart({ loading: externalLoading }: { l
         <div className="bg-white p-4 border border-gray-200 rounded shadow-lg">
           <p className="font-semibold">Spending Score: {data.spendingGroup}</p>
           <p>Avg. Sentiment: {data.averageScore.toFixed(2)}</p>
-          <p>Customers: {data.count}</p>
+          <p>Sentiments: {data.count}</p>
         </div>
       );
     }
@@ -306,7 +306,7 @@ export default function SpendingSentimentChart({ loading: externalLoading }: { l
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={data}
-              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              margin={{ top: 5, right: 30, left: 10, bottom: 20 }}
               layout="horizontal"
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -314,7 +314,7 @@ export default function SpendingSentimentChart({ loading: externalLoading }: { l
                 dataKey="spendingGroup" 
                 type="category" 
                 tick={{ fontSize: 14 }}
-                label={{ value: 'Spending Score', position: 'insideBottom', offset: -5 }}
+                label={{ value: 'Spending Score', position: 'insideBottom', offset: -15 }}
               />
               <YAxis 
                 type="number" 
@@ -322,7 +322,14 @@ export default function SpendingSentimentChart({ loading: externalLoading }: { l
                 tickCount={6}
                 tickFormatter={(value) => value.toFixed(1)}
                 width={60}
-                label={{ value: 'Avg. Sentiment', angle: -90, position: 'insideLeft' }}
+                label={{
+                  value: 'Avg. Sentiment',
+                  angle: -90,
+                  position: 'insideLeft',
+                  style: {
+                    textAnchor: 'middle'
+                  }
+                }}
               />
               <Tooltip content={<CustomTooltip />} />
               <Bar 
@@ -333,11 +340,7 @@ export default function SpendingSentimentChart({ loading: externalLoading }: { l
               />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-        <div className="mt-4 text-sm text-gray-500 text-center">
-          Hover over bars to see customer count
-        </div>
-        
+        </div>        
         {/* AI Review Component */}
         <DynamicSpendingSentimentReview data={data} />
       </CardContent>

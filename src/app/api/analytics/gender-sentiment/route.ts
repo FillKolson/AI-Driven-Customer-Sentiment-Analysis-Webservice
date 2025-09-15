@@ -25,29 +25,8 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // First, get the count of unique customers per gender
-    const { data: customerCounts, error: countError } = await supabase
-      .from('supermarket_customer_members')
-      .select('gender')
-      .not('gender', 'is', null);
-
-    if (countError) {
-      console.error('Error fetching customer counts by gender:', countError);
-      return NextResponse.json(
-        { error: 'Failed to fetch customer counts by gender' },
-        { status: 500 }
-      );
-    }
-
-    // Process the customer counts locally
-    const genderCounts = (customerCounts || []).reduce<Record<string, number>>((acc, item) => {
-      const gender = item.gender || 'Unknown';
-      acc[gender] = (acc[gender] || 0) + 1;
-      return acc;
-    }, {});
-
-    // Then get the average sentiment by gender
-    const { data, error } = await supabase
+    // Get sentiment analyses for the current user with customer gender information
+    const { data: sentimentData, error } = await supabase
       .from('sentiment_analyses')
       .select(`
         sentiment_score,
@@ -55,15 +34,35 @@ export async function GET() {
           gender
         )
       `)
+      .eq('user_id', user.id)
       .not('customer.gender', 'is', null);
 
-    const typedData = data as unknown as SentimentResponse[] | null;
-
     if (error) {
-      console.error('Error fetching gender sentiment data:', error);
+      console.error('Error fetching sentiment data:', error);
       return NextResponse.json(
-        { error: 'Failed to fetch gender sentiment data' },
+        { error: 'Failed to fetch sentiment data' },
         { status: 500 }
+      );
+    }
+
+    if (!sentimentData || sentimentData.length === 0) {
+      return NextResponse.json({ chartData: [] });
+    }
+
+    // Process the data to group by gender and count customers
+    const genderCounts = (sentimentData || []).reduce<Record<string, number>>((acc, item: any) => {
+      const gender = item.customer?.gender || 'Unknown';
+      acc[gender] = (acc[gender] || 0) + 1;
+      return acc;
+    }, {});
+
+    const typedData = sentimentData as unknown as SentimentResponse[] | null;
+
+    if (!typedData) {
+      console.error('No valid data received');
+      return NextResponse.json(
+        { error: 'No valid data available' },
+        { status: 404 }
       );
     }
 

@@ -179,7 +179,7 @@ export default function SentimentCategoriesChart({ loading = false }: SentimentC
     }
 
     return (
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+      <div className="mt-6 p-4 bg-white rounded-lg">
         <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Sentiment Distribution Analysis</h4>
         <p className="text-sm text-gray-600 mb-3">
           Analysis of {insights.totalAnalyses} sentiment analyses across all customer interactions

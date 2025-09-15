@@ -28,10 +28,9 @@ export async function GET() {
       );
     }
 
-    // Sort by quantity in descending order and limit to top 20
+    // Sort by quantity in descending order
     const sortedData = (data as ProductQuantity[])
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 20);
+      .sort((a, b) => b.quantity - a.quantity);
 
     return NextResponse.json({ products: sortedData });
   } catch (error) {

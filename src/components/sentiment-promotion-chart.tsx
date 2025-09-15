@@ -172,7 +172,7 @@ export default function SentimentPromotionChart({ loading = false }: SentimentPr
     }
 
     return (
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+      <div className="mt-6 p-4 bg-white rounded-lg">
         <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Sentiment-Promotion Analysis</h4>
         <p className="text-sm text-gray-600 mb-3">
           Analysis of {insights.totalBranches} supermarket branches with {data.summary.totalDataPoints} total sentiment data points
@@ -333,16 +333,36 @@ export default function SentimentPromotionChart({ loading = false }: SentimentPr
               <XAxis 
                 dataKey="promotionSpend" 
                 type="number"
-                name="Promotion Spend ($)"
-                domain={['dataMin - 50', 'dataMax + 50']}
-                tickFormatter={(value) => `$${value.toFixed(0)}`}
+                name="Promotion Spend"
+                domain={['dataMin - 50000', 'dataMax + 50000']}
+                tickFormatter={(value: number) => `$${value.toFixed(0)}`}
+                label={{ value: 'Promotion Spend ($)', position: 'insideBottom', offset: -10 }}
+                ticks={(() => {
+                  const min = Math.floor(data.summary.promotionSpendRange.min / 50000) * 50000;
+                  const max = Math.ceil(data.summary.promotionSpendRange.max / 50000) * 50000;
+                  const count = Math.max(5, Math.ceil((max - min) / 50000) + 1);
+                  return Array.from(
+                    { length: count },
+                    (_, i) => min + (i * 50000)
+                  ).filter(tick => tick >= 0);
+                })()}
               />
               <YAxis 
                 dataKey="averageSentimentScore"
                 type="number"
-                name="Avg Sentiment Score"
+                name="Sentiment Score"
                 domain={[0, 1]}
                 tickFormatter={(value) => value.toFixed(2)}
+                //label={{ value: 'Sentiment score', angle: -90, position: 'insideLeft', offset: -10 }}
+                label={{
+                  value: 'Sentiment score',
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: -5,
+                  style: {
+                    textAnchor: 'middle'
+                  }
+                }}
               />
               <Tooltip content={<CustomTooltip />} />
               <Scatter 

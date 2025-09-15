@@ -18,10 +18,11 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get branch data with advertisement spend and profit
+    // Get branch data with advertisement spend and profit for the current user
     const { data, error } = await supabase
       .from('supermarket_branches')
-      .select('supermarket_id, advertisement_spend, profit')
+      .select('advertisement_spend, profit')
+      .eq('user_id', user.id)
       .not('advertisement_spend', 'is', null)
       .not('profit', 'is', null);
 
@@ -33,10 +34,14 @@ export async function GET() {
       );
     }
 
+    if (!data || data.length === 0) {
+      return NextResponse.json({ chartData: [] });
+    }
+
     // Sort by advertisement spend for better visualization
-    const sortedData = [...(data || [])].sort((a, b) => 
-      (a.advertisement_spend || 0) - (b.advertisement_spend || 0)
-    );
+    const sortedData = data
+      .filter(branch => branch.advertisement_spend !== null && branch.profit !== null)
+      .sort((a, b) => (a.advertisement_spend || 0) - (b.advertisement_spend || 0));
 
     return NextResponse.json({ chartData: sortedData });
   } catch (error) {

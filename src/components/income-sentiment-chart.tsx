@@ -122,7 +122,7 @@ const DynamicIncomeSentimentReview = ({ data }: { data: IncomeSentimentData[] })
   const { insights } = review;
 
   return (
-    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+    <div className="mt-6 p-4 bg-white rounded-lg">
       <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Income Demographics Review</h4>
       <p className="text-sm text-gray-600 mb-3">
         Analysis based on {insights.totalCustomers} customers across {insights.incomeGroups} income groups
@@ -306,7 +306,7 @@ export default function IncomeSentimentChart({ loading: externalLoading }: { loa
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={data}
-              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              margin={{ top: 5, right: 30, left: 15, bottom: 20 }}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis 
@@ -319,7 +319,7 @@ export default function IncomeSentimentChart({ loading: externalLoading }: { loa
                   //XD
                   return `$${num}`;
                 }}
-                label={{ value: 'Annual Income', position: 'insideBottom', offset: -5 }}
+                label={{ value: 'Annual Income ($k)', position: 'insideBottom', offset: -15 }}
               />
               <YAxis 
                 type="number" 
@@ -327,10 +327,17 @@ export default function IncomeSentimentChart({ loading: externalLoading }: { loa
                 tickCount={6}
                 tickFormatter={(value) => value.toFixed(1)}
                 width={60}
-                label={{ value: 'Avg. Sentiment', angle: -90, position: 'insideLeft' }}
+                label={{
+                  value: 'Avg. Sentiment',
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: -5,
+                  style: {
+                    textAnchor: 'middle'
+                  }
+                }}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Legend />
               <Line 
                 type="monotone" 
                 dataKey="averageScore" 
@@ -342,11 +349,7 @@ export default function IncomeSentimentChart({ loading: externalLoading }: { loa
               />
             </LineChart>
           </ResponsiveContainer>
-        </div>
-        <div className="mt-4 text-sm text-gray-500 text-center">
-          Hover over bars to see customer count
-        </div>
-        
+        </div>     
         {/* AI Review Component */}
         <DynamicIncomeSentimentReview data={data} />
       </CardContent>

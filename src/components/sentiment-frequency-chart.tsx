@@ -176,7 +176,7 @@ export default function SentimentFrequencyChart({ loading = false }: SentimentFr
     }
 
     return (
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+      <div className="mt-6 p-4 bg-white rounded-lg">
         <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Sentiment-Frequency Analysis</h4>
         <p className="text-sm text-gray-600 mb-3">
           Analysis of {insights.totalCustomers} customers with {data.summary.totalDataPoints} total sentiment data points
@@ -355,6 +355,7 @@ export default function SentimentFrequencyChart({ loading = false }: SentimentFr
                 name="Purchase Frequency"
                 domain={['dataMin - 1', 'dataMax + 1']}
                 tickFormatter={(value) => value.toString()}
+                label={{ value: 'Purchase Frequency', position: 'insideBottom', offset: -15 }}
               />
               <YAxis 
                 dataKey="averageSentimentScore"
@@ -362,6 +363,15 @@ export default function SentimentFrequencyChart({ loading = false }: SentimentFr
                 name="Avg Sentiment Score"
                 domain={[0, 1]}
                 tickFormatter={(value) => value.toFixed(2)}
+                label={{
+                  value: 'Sentiment score',
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: -5,
+                  style: {
+                    textAnchor: 'middle'
+                  }
+                }}
               />
               <Tooltip content={<CustomTooltip />} />
               <Scatter 

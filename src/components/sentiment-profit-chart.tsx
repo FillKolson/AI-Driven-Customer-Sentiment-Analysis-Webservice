@@ -168,7 +168,7 @@ export default function SentimentProfitChart({ loading = false }: SentimentProfi
     }
 
     return (
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+      <div className="mt-6 p-4 bg-white rounded-lg">
         <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Sentiment-Profit Analysis</h4>
         <p className="text-sm text-gray-600 mb-3">
           Analysis of {insights.totalBranches} supermarket branches with {data.summary.totalDataPoints} total sentiment data points
@@ -329,6 +329,7 @@ export default function SentimentProfitChart({ loading = false }: SentimentProfi
                 name="Profit ($)"
                 domain={['dataMin - 50', 'dataMax + 50']}
                 tickFormatter={(value) => `$${value.toFixed(0)}`}
+                label={{ value: 'Profit ($)', position: 'insideBottom', offset: -15 }}
               />
               <YAxis 
                 dataKey="averageSentimentScore"
@@ -336,6 +337,15 @@ export default function SentimentProfitChart({ loading = false }: SentimentProfi
                 name="Avg Sentiment Score"
                 domain={[0, 1]}
                 tickFormatter={(value) => value.toFixed(2)}
+                label={{
+                  value: 'Sentiment score',
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: -3,
+                  style: {
+                    textAnchor: 'middle'
+                  }
+                }}
               />
               <Tooltip content={<CustomTooltip />} />
               <Scatter 

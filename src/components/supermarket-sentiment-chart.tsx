@@ -10,7 +10,8 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Cell
+  Cell,
+  ReferenceLine
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, Store } from "lucide-react";
@@ -101,7 +102,7 @@ const DynamicAnalystReview = ({ data }: { data: SupermarketSentimentData }) => {
   }
 
   return (
-    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+    <div className="mt-6 p-4 bg-white rounded-lg">
       <h4 className="font-semibold text-gray-900 mb-2">🤖 AI-Generated Supermarket Performance Analysis</h4>
       <p className="text-sm text-gray-600 mb-3">
         Comprehensive analysis of {insights.totalSupermarkets} supermarket locations
@@ -336,47 +337,64 @@ export default function SupermarketSentimentChart({ loading = false }: Supermark
         </div>
       </CardHeader>
       <CardContent>
-        <div className="h-96 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={data.chartData}
-              layout="vertical"
-              margin={{
-                top: 20,
-                right: 30,
-                left: 40,
-                bottom: 20,
-              }}
-            >
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis 
-                type="number" 
-                domain={[0, 1]} 
-                tickCount={5}
-                tickFormatter={(value) => value.toFixed(1)}
-              />
-              <YAxis 
-                dataKey="supermarketId" 
-                type="category" 
-                width={40}
-                tick={{ fontSize: 12 }}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend />
-              <Bar 
-                dataKey="averageScore" 
-                name="Average Sentiment Score"
-                radius={[0, 4, 4, 0]}
-              >
-                {data.chartData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={getBarColor(entry.averageScore)} 
+        <div className="h-[600px] w-full overflow-hidden">
+          <div className="h-full w-full overflow-y-auto pr-4">
+            <div style={{ height: `${Math.max(400, data.chartData.length * 15)}px`, minHeight: '100%', width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={data.chartData}
+                  layout="vertical"
+                  margin={{
+                    top: 20,
+                    right: 30,
+                    left: 40,
+                    bottom: 20,
+                  }}
+                  barSize={20}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis 
+                    type="number" 
+                    domain={[0, 1]} 
+                    tickCount={5}
+                    tickFormatter={(value) => value.toFixed(1)}
+                    label={{ value: 'Sentiment Score', position: 'insideBottom', offset: -15 }}
                   />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+                  <YAxis 
+                    dataKey="supermarketId" 
+                    type="category" 
+                    width={30}
+                    tick={{ fontSize: 12 }}
+                    tickMargin={5}
+                    interval={0}
+                    label={{
+                      value: 'Supermarket Branch',
+                      angle: -90,
+                      position: 'insideLeft',
+                      offset: -15,
+                      style: {
+                        textAnchor: 'middle'
+                      }
+                    }}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <ReferenceLine x={0.5} stroke="#8884d8" strokeDasharray="3 3" />
+                  <Bar 
+                    dataKey="averageScore" 
+                    name="Sentiment Score"
+                    radius={[0, 4, 4, 0]}
+                  >
+                    {data.chartData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={getBarColor(entry.averageScore)} 
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
         <div className="mt-4 text-sm text-gray-600">
           <p>Showing average sentiment scores across {data.chartData.length} supermarkets.</p>
@@ -387,11 +405,11 @@ export default function SupermarketSentimentChart({ loading = false }: Supermark
             </div>
             <div className="flex items-center gap-1">
               <div className="w-3 h-3 bg-gray-500 rounded-sm"></div>
-              <span>Neutral (-0.33 to 0.66)</span>
+              <span>Neutral (0.33 to 0.66)</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-3 h-3 bg-red-500 rounded-sm"></div>
-              <span>Negative (&lt; -0.33)</span>
+              <span>Negative (&lt; 0.33)</span>
             </div>
           </div>
         </div>

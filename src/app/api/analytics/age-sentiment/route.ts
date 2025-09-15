@@ -23,7 +23,13 @@ const AGE_GROUPS: AgeGroup[] = [
   { label: '35-39', min: 35, max: 39 },
   { label: '40-44', min: 40, max: 44 },
   { label: '45-49', min: 45, max: 49 },
-  { label: '50>=', min: 50, max: null },
+  { label: '50-54', min: 50, max: 54 },
+  { label: '55-59', min: 55, max: 59 },
+  { label: '60-64', min: 60, max: 64 },
+  { label: '65-69', min: 65, max: 69 },
+  { label: '70-74', min: 70, max: 74 },
+  { label: '75-79', min: 75, max: 79 },
+  { label: '80>=', min: 80, max: null },
 ];
 
 function getAgeGroup(age: number): string {
@@ -46,29 +52,8 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // First, get all customers with their ages
-    const { data: allCustomers, error: customersError } = await supabase
-      .from('supermarket_customer_members')
-      .select('age')
-      .not('age', 'is', null);
-
-    if (customersError) {
-      console.error('Error fetching customer ages:', customersError);
-      return NextResponse.json(
-        { error: 'Failed to fetch customer ages' },
-        { status: 500 }
-      );
-    }
-
-    // Count customers per age
-    const ageCounts = (allCustomers || []).reduce<Record<number, number>>((acc, { age }) => {
-      if (age === null) return acc;
-      acc[age] = (acc[age] || 0) + 1;
-      return acc;
-    }, {});
-
-    // Then get the sentiment scores with customer ages
-    const { data, error } = await supabase
+    // Get sentiment analyses for the current user with customer age information
+    const { data: sentimentData, error } = await supabase
       .from('sentiment_analyses')
       .select(`
         sentiment_score,
@@ -76,9 +61,8 @@ export async function GET() {
           age
         )
       `)
+      .eq('user_id', user.id)
       .not('customer.age', 'is', null);
-
-    const typedData = data as unknown as SentimentResponse[] | null;
 
     if (error) {
       console.error('Error fetching age sentiment data:', error);
@@ -88,8 +72,30 @@ export async function GET() {
       );
     }
 
+    if (!sentimentData || sentimentData.length === 0) {
+      return NextResponse.json({ chartData: [] });
+    }
+
+    // Count customers per age from the sentiment data
+    const ageCounts = (sentimentData || []).reduce<Record<number, number>>((acc, item: any) => {
+      const age = item.customer?.age;
+      if (age === null || age === undefined) return acc;
+      acc[age] = (acc[age] || 0) + 1;
+      return acc;
+    }, {});
+
+    const typedData = sentimentData as unknown as SentimentResponse[] | null;
+
+    if (!typedData) {
+      console.error('No valid data received');
+      return NextResponse.json(
+        { error: 'No valid data available' },
+        { status: 404 }
+      );
+    }
+
     // Process the data to group by age group
-    const ageGroups = (typedData || []).reduce<Record<string, {scores: number[], customerAges: Record<number, boolean>}>>((acc, item) => {
+    const ageGroups = (typedData || []).reduce<Record<string, {scores: number[], customerAges: Record<number, boolean>}>>((acc, item: any) => {
       if (!item.customer?.age) return acc;
       
       const ageGroup = getAgeGroup(item.customer.age);
