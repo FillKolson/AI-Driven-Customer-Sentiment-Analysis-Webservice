@@ -268,18 +268,18 @@ export default function UserSettingsForm({
               <div className="flex justify-between items-center">
                 <Label htmlFor="bio">Bio (Optional)</Label>
                 <span className="text-xs text-gray-500">
-                  {formData.bio.length}/100
+                  {formData.bio.length}/200
                 </span>
               </div>
               <Textarea
                 id="bio"
                 value={formData.bio}
                 onChange={(e) =>
-                  setFormData({ ...formData, bio: e.target.value.slice(0, 100) })
+                  setFormData({ ...formData, bio: e.target.value.slice(0, 200) })
                 }
-                placeholder="Tell us about yourself (max 100 characters)"
+                placeholder="Tell us about yourself (max 200 characters)"
                 rows={3}
-                maxLength={100}
+                maxLength={200}
               />
             </div>
             <Button type="submit" disabled={isLoading}>
