@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LabelList } from 'recharts';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from 'lucide-react';
 
@@ -120,8 +120,14 @@ export default function ProductQuantitiesChart() {
             Product Quantities
           </CardTitle>
         </CardHeader>
-        <CardContent className="h-[calc(100%-80px)] flex items-center justify-center">
-          <p className="text-gray-500">No product data available</p>
+        <CardContent className="h-[calc(100%-80px)]">
+          <div className="text-center py-8">
+            <BarChart3 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+            <p className="text-gray-500">No product data available</p>
+            <p className="text-sm text-gray-400 mt-1">
+              Ensure product quantities are present in your dataset
+            </p>
+          </div>
         </CardContent>
       </Card>
     );

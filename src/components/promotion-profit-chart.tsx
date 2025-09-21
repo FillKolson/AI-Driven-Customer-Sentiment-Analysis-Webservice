@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, Loader2 } from 'lucide-react';
+import { TrendingUp, Loader2, BarChart3 } from 'lucide-react';
 
 interface BranchData {
   branch_id: string;
@@ -294,8 +294,14 @@ export default function PromotionProfitChart({ loading: externalLoading }: { loa
             Promotion Spend vs. Profit
           </CardTitle>
         </CardHeader>
-        <CardContent className="h-96 flex items-center justify-center">
-          <p className="text-gray-500">No promotion profit data available</p>
+        <CardContent>
+          <div className="text-center py-8">
+            <BarChart3 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+            <p className="text-gray-500">No promotion profit data available</p>
+            <p className="text-sm text-gray-400 mt-1">
+              Ensure you have branch promotion spend and profit data
+            </p>
+          </div>
         </CardContent>
       </Card>
     );
