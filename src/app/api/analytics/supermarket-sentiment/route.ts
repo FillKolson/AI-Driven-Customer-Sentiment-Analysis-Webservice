@@ -12,10 +12,11 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Query to get average sentiment score by supermarket
+    // Query to get average sentiment score by supermarket for the current user
     const { data, error } = await supabase
       .from('sentiment_analyses')
       .select('supermarket_id, sentiment_score')
+      .eq('user_id', user.id)  // Filter by the current user's ID
       .not('supermarket_id', 'is', null);
     
     if (error) {
