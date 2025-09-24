@@ -32,6 +32,15 @@ export default async function SettingsPage() {
     );
   }
 
+  // Fetch latest subscription to determine cancel_at_period_end (for showing Restore vs Unsubscribe)
+  const { data: latestSub } = await supabase
+    .from("subscriptions")
+    .select("cancel_at_period_end, status, current_period_end")
+    .eq("user_id", user.id)
+    .order("current_period_end", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   return (
     <div className="min-h-screen bg-gray-50">
       <main className="w-full">
@@ -53,6 +62,7 @@ export default async function SettingsPage() {
               api_usage_current_month: profile.api_usage_current_month || 0,
               api_limit_per_month: profile.api_limit_per_month || 0,
               created_at: profile.created_at || new Date().toISOString(),
+              cancel_at_period_end: latestSub?.cancel_at_period_end ?? false,
             }}
           />
         </div>

@@ -27,6 +27,7 @@ interface UserData {
   api_limit_per_month: number;
   created_at: string;
   bio?: string;
+  cancel_at_period_end?: boolean;
 }
 
 interface UserSettingsFormProps {
@@ -39,7 +40,7 @@ export default function UserSettingsForm({
   const [isLoading, setIsLoading] = useState(false);
   const [preferencesLoading, setPreferencesLoading] = useState(true);
   const [errors, setErrors] = useState<{full_name?: string}>({});
-  const [unsubscribed, setUnsubscribed] = useState(false);
+  const [unsubscribed, setUnsubscribed] = useState(!!user.cancel_at_period_end);
   const [formData, setFormData] = useState({
     full_name: user.full_name,
     email: user.email,
@@ -78,6 +79,11 @@ export default function UserSettingsForm({
     fetchPreferences();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Keep local unsubscribe toggle in sync with server-provided flag
+  useEffect(() => {
+    setUnsubscribed(!!user.cancel_at_period_end);
+  }, [user.cancel_at_period_end]);
 
   const validateForm = () => {
     const newErrors: {full_name?: string} = {};
@@ -343,6 +349,7 @@ export default function UserSettingsForm({
                             title: 'Unsubscribed', 
                             description: 'Auto-renewal turned off. You can use your plan until the period ends.'
                           });
+                          router.refresh();
                         } catch (error) {
                           let message = 'Failed to unsubscribe';
                           if (error instanceof Error) {
@@ -373,6 +380,7 @@ export default function UserSettingsForm({
                           }
                           setUnsubscribed(false);
                           toast({ title: 'Subscription restored', description: 'Auto-renewal turned back on.' });
+                          router.refresh();
                         } catch (error) {
                           let message = 'Failed to restore subscription';
                           if (error instanceof Error) message = error.message;

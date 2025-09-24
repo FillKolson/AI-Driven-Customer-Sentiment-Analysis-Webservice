@@ -72,7 +72,7 @@ CREATE TABLE public.sentiment_analyses (
     basket_id TEXT,
     sentiment_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT timezone('utc'::text, now()),
     sentiment_score DECIMAL(3, 2) NOT NULL CHECK (sentiment_score >= -1 AND sentiment_score <= 1),
-    confidence_level DECIMAL(3, 2) NOT NULL CHECK (confidence_level >= 0 AND confidence_level <= 1),
+    confidence_level DECIMAL(3, 2) NOT NULL CHECK (confidence_level >= 0 AND confidence_level <= 100),
     sentiment_category TEXT NOT NULL CHECK (sentiment_category IN ('positive', 'neutral', 'negative')),
     input_text TEXT,
     sentiment_result JSONB,

@@ -16,14 +16,36 @@ const tableConfigs = {
     ],
     requiredColumns: ['customer_id', 'supermarket_id', 'sentiment_score'],
     transformRow: (row: any) => {
-      const parseNum = (v: any) => {
+      const toText = (v: any) => (v === null || v === undefined ? null : String(v).trim());
+      const parsePercentish = (v: any) => {
         if (v === null || v === undefined) return null;
-        const s = String(v).replace(/[^0-9.+-eE]/g, '').trim();
-        const n = parseFloat(s);
-        return isNaN(n) ? null : n;
+        const s = String(v).trim();
+        // Extract numeric part
+        const numStr = s.replace(/[^0-9.+-eE]/g, '');
+        let n = parseFloat(numStr);
+        if (isNaN(n)) return null;
+        // If looks like percent ("85%" or > 1 but <= 100), convert to [0,1]
+        if (s.includes('%') || (Math.abs(n) > 1 && Math.abs(n) <= 100)) {
+          n = n / 100;
+        }
+        return n;
       };
-      const score = parseNum(row.sentiment_score);
-      const conf = row.confidence_level !== undefined ? parseInt(String(row.confidence_level).replace(/[^0-9-]/g,'')) : null;
+      // sentiment_score must be between -1 and 1 (DECIMAL(3,2) with check)
+      let score = parsePercentish(row.sentiment_score);
+      if (typeof score === 'number') {
+        if (score > 1) score = 1;
+        if (score < -1) score = -1;
+      } else {
+        score = 0; // default
+      }
+      // confidence_level must be between 0 and 1
+      let conf = parsePercentish(row.confidence_level);
+      if (typeof conf === 'number') {
+        if (conf > 1) conf = 1;
+        if (conf < 0) conf = 0;
+      } else {
+        conf = null;
+      }
       const rawCat = (row.sentiment_category ?? '').toString().trim().toLowerCase();
       const cleanedCat = rawCat.replace(/[^a-z]/g, '');
       const map: Record<string, 'positive'|'negative'|'neutral'> = {
@@ -40,12 +62,14 @@ const tableConfigs = {
         }
       }
       return {
-        sentiment_id: row.sentiment_id ? parseInt(String(row.sentiment_id).replace(/[^0-9-]/g,'')) : null,
-        customer_id: parseInt(String(row.customer_id).replace(/[^0-9-]/g,'')),
-        supermarket_id: parseInt(String(row.supermarket_id).replace(/[^0-9-]/g,'')),
-        basket_id: row.basket_id ? parseInt(String(row.basket_id).replace(/[^0-9-]/g,'')) : null,
-        sentiment_date: row.sentiment_date || new Date().toISOString().split('T')[0],
-        sentiment_score: score ?? 0,
+        // IDs are TEXT in schema; preserve as trimmed text
+        sentiment_id: toText(row.sentiment_id) ?? String(Date.now()),
+        customer_id: toText(row.customer_id),
+        supermarket_id: toText(row.supermarket_id),
+        basket_id: toText(row.basket_id),
+        // Try to standardize date to ISO date string
+        sentiment_date: toText(row.sentiment_date) || new Date().toISOString(),
+        sentiment_score: score,
         confidence_level: conf,
         sentiment_category: category ?? 'neutral',
       };
@@ -59,12 +83,12 @@ const tableConfigs = {
     ],
     requiredColumns: ['supermarket_id', 'state'],
     transformRow: (row: any) => ({
-      supermarket_id: parseInt(row.supermarket_id),
-      advertisement_spend: row.advertisement_spend ? parseFloat(row.advertisement_spend) : 0,
-      promotion_spend: row.promotion_spend ? parseFloat(row.promotion_spend) : 0,
-      administration_spend: row.administration_spend ? parseFloat(row.administration_spend) : 0,
-      state: row.state,
-      profit: row.profit ? parseFloat(row.profit) : 0
+      supermarket_id: String(row.supermarket_id).trim(),
+      advertisement_spend: row.advertisement_spend ? parseFloat(String(row.advertisement_spend)) : 0,
+      promotion_spend: row.promotion_spend ? parseFloat(String(row.promotion_spend)) : 0,
+      administration_spend: row.administration_spend ? parseFloat(String(row.administration_spend)) : 0,
+      state: String(row.state ?? '').trim(),
+      profit: row.profit ? parseFloat(String(row.profit)) : 0
     })
   },
   supermarket_customer_members: {
@@ -75,15 +99,15 @@ const tableConfigs = {
     ],
     requiredColumns: ['customer_id', 'gender', 'age'],
     transformRow: (row: any) => ({
-      customer_id: parseInt(row.customer_id),
-      gender: row.gender,
-      age: parseInt(row.age),
-      annual_income: row.annual_income ? parseInt(row.annual_income) : null,
-      spending_score: row.spending_score ? parseInt(row.spending_score) : null,
-      total_purchases: row.total_purchases ? parseInt(row.total_purchases) : 0,
-      average_order_value: row.average_order_value ? parseFloat(row.average_order_value) : 0,
-      purchase_frequency: row.purchase_frequency ? parseFloat(row.purchase_frequency) : 0,
-      last_purchase_date: row.last_purchase_date || null
+      customer_id: String(row.customer_id).trim(),
+      gender: String(row.gender ?? '').trim(),
+      age: row.age !== undefined && row.age !== null ? parseInt(String(row.age)) : null,
+      annual_income: row.annual_income ? parseFloat(String(row.annual_income)) : null,
+      spending_score: row.spending_score ? parseInt(String(row.spending_score)) : null,
+      total_purchases: row.total_purchases ? parseInt(String(row.total_purchases)) : 0,
+      average_order_value: row.average_order_value ? parseFloat(String(row.average_order_value)) : 0,
+      purchase_frequency: row.purchase_frequency ? parseFloat(String(row.purchase_frequency)) : 0,
+      last_purchase_date: row.last_purchase_date ? String(row.last_purchase_date).trim() : null
     })
   },
   market_basket_optimisation: {
@@ -94,16 +118,16 @@ const tableConfigs = {
     ],
     requiredColumns: ['basket_id'],
     transformRow: (row: any) => ({
-      basket_id: parseInt(row.basket_id),
-      product1: row.product1 || null,
-      product2: row.product2 || null,
-      product3: row.product3 || null,
-      product4: row.product4 || null,
-      product5: row.product5 || null,
-      product6: row.product6 || null,
-      product7: row.product7 || null,
-      product8: row.product8 || null,
-      product9: row.product9 || null
+      basket_id: String(row.basket_id).trim(),
+      product1: row.product1 ? String(row.product1) : null,
+      product2: row.product2 ? String(row.product2) : null,
+      product3: row.product3 ? String(row.product3) : null,
+      product4: row.product4 ? String(row.product4) : null,
+      product5: row.product5 ? String(row.product5) : null,
+      product6: row.product6 ? String(row.product6) : null,
+      product7: row.product7 ? String(row.product7) : null,
+      product8: row.product8 ? String(row.product8) : null,
+      product9: row.product9 ? String(row.product9) : null
     })
   },
   ads_ctr_optimisation: {
@@ -114,17 +138,18 @@ const tableConfigs = {
     ],
     requiredColumns: ['supermarket_id'],
     transformRow: (row: any) => ({
-      supermarket_id: parseInt(row.supermarket_id),
-      ad1: row.ad1 ? parseInt(row.ad1) : 0,
-      ad2: row.ad2 ? parseInt(row.ad2) : 0,
-      ad3: row.ad3 ? parseInt(row.ad3) : 0,
-      ad4: row.ad4 ? parseInt(row.ad4) : 0,
-      ad5: row.ad5 ? parseInt(row.ad5) : 0,
-      ad6: row.ad6 ? parseInt(row.ad6) : 0,
-      ad7: row.ad7 ? parseInt(row.ad7) : 0,
-      ad8: row.ad8 ? parseInt(row.ad8) : 0,
-      ad9: row.ad9 ? parseInt(row.ad9) : 0,
-      ad10: row.ad10 ? parseInt(row.ad10) : 0
+      supermarket_id: String(row.supermarket_id).trim(),
+      // Ads columns are TEXT in schema. Preserve as strings if present, else null
+      ad1: row.ad1 !== undefined && row.ad1 !== null ? String(row.ad1) : null,
+      ad2: row.ad2 !== undefined && row.ad2 !== null ? String(row.ad2) : null,
+      ad3: row.ad3 !== undefined && row.ad3 !== null ? String(row.ad3) : null,
+      ad4: row.ad4 !== undefined && row.ad4 !== null ? String(row.ad4) : null,
+      ad5: row.ad5 !== undefined && row.ad5 !== null ? String(row.ad5) : null,
+      ad6: row.ad6 !== undefined && row.ad6 !== null ? String(row.ad6) : null,
+      ad7: row.ad7 !== undefined && row.ad7 !== null ? String(row.ad7) : null,
+      ad8: row.ad8 !== undefined && row.ad8 !== null ? String(row.ad8) : null,
+      ad9: row.ad9 !== undefined && row.ad9 !== null ? String(row.ad9) : null,
+      ad10: row.ad10 !== undefined && row.ad10 !== null ? String(row.ad10) : null
     })
   }
 } as const;
@@ -227,6 +252,17 @@ export async function POST(request: NextRequest) {
         continue;
       }
       const rows = results.data as CsvRow[];
+      // Detect duplicate headers
+      const fields = (results.meta as any)?.fields as string[] | undefined;
+      if (fields && fields.length > 0) {
+        const lower = fields.map(f => String(f).trim().toLowerCase());
+        const dupes = lower.filter((h, idx) => lower.indexOf(h) !== idx);
+        if (dupes.length > 0) {
+          const uniqDupes = Array.from(new Set(dupes));
+          allErrors.push(`${key}: Duplicate headers found: ${uniqDupes.join(', ')}`);
+          continue;
+        }
+      }
       if (rows.length === 0) {
         allErrors.push(`${key}: No data found in CSV`);
         continue;
