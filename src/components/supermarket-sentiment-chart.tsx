@@ -231,16 +231,10 @@ export default function SupermarketSentimentChart({ loading = false }: Supermark
       }
 
       const result = await response.json();
-      
-      if (!result.chartData || result.chartData.length === 0) {
-        throw new Error('No supermarket sentiment data available for your account');
-      }
-      
       setData(result);
     } catch (err) {
       console.error('Error fetching supermarket sentiment data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load supermarket sentiment data');
-      setData(null);
     } finally {
       setIsLoading(false);
     }
@@ -270,12 +264,15 @@ export default function SupermarketSentimentChart({ loading = false }: Supermark
 
   if (loading || isLoading) {
     return (
-      <Card className="animate-pulse">
+      <Card className="w-full">
         <CardHeader>
-          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+          <CardTitle className="flex items-center gap-2">
+            <Store className="h-5 w-5 text-blue-600" />
+            Supermarket Sentiment Analysis
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="h-80 bg-gray-200 rounded"></div>
+        <CardContent className="h-80 flex items-center justify-center">
+          <div className="text-center text-gray-500">Loading supermarket sentiment data...</div>
         </CardContent>
       </Card>
     );
@@ -283,38 +280,23 @@ export default function SupermarketSentimentChart({ loading = false }: Supermark
 
   if (error) {
     return (
-      <Card>
+      <Card className="w-full">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-red-500" />
-            Supermarket Sentiment Analysis - Error
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8">
-            <p className="text-red-600 mb-2">{error}</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!data?.chartData?.length) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Store className="w-5 h-5" />
+            <Store className="h-5 w-5 text-blue-600" />
             Supermarket Sentiment Analysis
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-center py-8">
-            <Store className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p className="text-gray-500">No supermarket sentiment data available</p>
-            <p className="text-sm text-gray-400 mt-1">
-              Please ensure you have sentiment analyses with supermarket data
-            </p>
+        <CardContent className="h-80 flex items-center justify-center">
+          <div className="text-center text-red-500">
+            <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
+            <p>{error}</p>
+            <button 
+              onClick={fetchSupermarketSentimentData}
+              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
+              Retry
+            </button>
           </div>
         </CardContent>
       </Card>
