@@ -92,6 +92,33 @@ export default function CsvDataUploader({ userId, currentUsage = 0, usageLimit =
         progress: 0
       }
     }));
+
+    // Perform immediate validation on selection to provide per-block feedback
+    if (file) {
+      const config = tableConfigs.find(c => c.key === tableKey);
+      if (config) {
+        validateCsvHeadersWithDetails(file, config.expectedColumns).then(res => {
+          setUploadStatuses(prev => ({
+            ...prev,
+            [tableKey]: {
+              ...prev[tableKey],
+              // Keep the file reference, but reflect validity status and message inline
+              status: res.isValid ? 'idle' : 'error',
+              message: res.isValid ? '' : res.message,
+            }
+          }));
+        }).catch(() => {
+          setUploadStatuses(prev => ({
+            ...prev,
+            [tableKey]: {
+              ...prev[tableKey],
+              status: 'error',
+              message: 'Could not read the file for validation.'
+            }
+          }));
+        });
+      }
+    }
   };
 
   const validateCsvFile = (file: File, expectedColumns: string[]): Promise<boolean> => {
@@ -117,6 +144,40 @@ export default function CsvDataUploader({ userId, currentUsage = 0, usageLimit =
           resolve(matchingColumns.length >= expectedColumns.length * 0.7);
         } catch {
           resolve(false);
+        }
+      };
+      reader.readAsText(file);
+    });
+  };
+
+  // Immediate, stricter validation with helpful message for inline feedback
+  const validateCsvHeadersWithDetails = (file: File, expectedColumns: string[]): Promise<{ isValid: boolean; message: string }> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const text = e.target?.result as string;
+          const lines = text.split('\n');
+          if (lines.length === 0) {
+            resolve({ isValid: false, message: 'Empty file. Please upload a CSV with headers and rows.' });
+            return;
+          }
+          const headerLine = lines[0];
+          const headers = headerLine.split(',').map(h => h.trim().toLowerCase()).filter(Boolean);
+          const expectedLower = expectedColumns.map(c => c.toLowerCase());
+
+          const missing = expectedLower.filter(col => !headers.includes(col));
+          if (missing.length > 0) {
+            resolve({
+              isValid: false,
+              message: `Invalid CSV columns. Missing: ${missing.join(', ')}. Expected headers: ${expectedColumns.join(', ')}`
+            });
+            return;
+          }
+
+          resolve({ isValid: true, message: '' });
+        } catch {
+          resolve({ isValid: false, message: 'Failed to parse CSV headers. Please check the file format.' });
         }
       };
       reader.readAsText(file);
@@ -255,6 +316,17 @@ export default function CsvDataUploader({ userId, currentUsage = 0, usageLimit =
       'ads_ctr_optimisation',
       'sentiment_analyses',
     ];
+
+    // Early guard: if any block already marked error, abort immediately
+    const hasExistingErrors = order.some(key => uploadStatuses[key]?.status === 'error');
+    if (hasExistingErrors) {
+      toast({
+        title: 'Fix validation errors',
+        description: 'Please resolve the highlighted CSV errors before starting the bulk upload.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     // Reset all statuses first
     setUploadStatuses(prev => {
@@ -509,30 +581,54 @@ export default function CsvDataUploader({ userId, currentUsage = 0, usageLimit =
             {datasetNameError}
           </p>
         )}
-        <div className="flex gap-2">
-          <Button className="w-full" onClick={uploadAllInOrder} disabled={isBulkUploading}>
-            {isBulkUploading ? (
-              <>
-                <Upload className="w-4 h-4 mr-2 animate-pulse" />
-                Uploading all...
-              </>
-            ) : (
-              <>
-                <Upload className="w-4 h-4 mr-2" />
-                Upload All (Ordered)
-              </>
-            )}
-          </Button>
-          <Button asChild variant="outline" className="whitespace-nowrap">
-            <Link href="/dashboard/history">View data visualizations</Link>
-          </Button>
-        </div>
+        {(() => {
+          const requiredOrder = [
+            'supermarket_branches',
+            'supermarket_customer_members',
+            'market_basket_optimisation',
+            'ads_ctr_optimisation',
+            'sentiment_analyses',
+          ];
+          const hasValidationErrors = requiredOrder.some(key => uploadStatuses[key]?.status === 'error');
+          const hasMissingFiles = requiredOrder.some(key => !uploadStatuses[key]?.file);
+          const disableBulk = isBulkUploading || hasValidationErrors || hasMissingFiles;
+          return (
+            <div className="flex gap-2 items-start">
+              <Button
+                className="w-full"
+                onClick={uploadAllInOrder}
+                disabled={disableBulk}
+                title={hasValidationErrors ? 'Resolve file validation errors before uploading' : hasMissingFiles ? 'Select files for all upload blocks before uploading' : ''}
+             >
+              {isBulkUploading ? (
+                <>
+                  <Upload className="w-4 h-4 mr-2 animate-pulse" />
+                  Uploading all...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload All (Ordered)
+                </>
+              )}
+              </Button>
+              {(hasValidationErrors || hasMissingFiles) && (
+                <p className="text-xs text-red-600 mt-2">
+                  {hasValidationErrors ? 'Resolve CSV errors in the blocks above.' : 'Please select a file for each required block.'}
+                </p>
+              )}
+              <Button asChild variant="outline" className="whitespace-nowrap">
+                <Link href="/dashboard/history">View data visualizations</Link>
+              </Button>
+            </div>
+          );
+        })()}
       </div>
 
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
         {tableConfigs.map((config) => {
           const status = uploadStatuses[config.key];
-          
+          // ...
           return (
             <Card key={config.key} className="relative">
               <CardHeader>
