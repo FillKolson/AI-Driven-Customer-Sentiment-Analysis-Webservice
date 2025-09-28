@@ -309,10 +309,17 @@ export default function SentimentProfitChart({ loading = false }: SentimentProfi
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <TrendingUp className="w-5 h-5" />
-          Average Sentiment Score vs Profit Analysis
-        </CardTitle>
+        <div className="flex justify-between items-center">
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5" />
+            Average Sentiment Score vs Profit Analysis
+          </CardTitle>
+          <div className="text-sm text-gray-600">
+            Correlation: <span className={`font-medium ${data.summary.correlationCoefficient > 0 ? 'text-green-600' : data.summary.correlationCoefficient < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+              {data.summary.correlationCoefficient.toFixed(2)}
+            </span>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         {/* Scatter Plot Chart */}
@@ -337,27 +344,13 @@ export default function SentimentProfitChart({ loading = false }: SentimentProfi
                 name="Avg Sentiment Score"
                 domain={[0, 1]}
                 tickFormatter={(value) => value.toFixed(2)}
-                label={{
-                  value: 'Sentiment score',
-                  angle: -90,
-                  position: 'insideLeft',
-                  offset: -3,
-                  style: {
-                    textAnchor: 'middle'
-                  }
-                }}
+                label={{ value: 'Sentiment score', angle: -90, position: 'insideLeft', offset: -3, style: { textAnchor: 'middle' } }}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Scatter 
-                dataKey="averageSentimentScore" 
-                fill="#3b82f6"
-                stroke="#1e40af"
-                strokeWidth={1}
-              />
+              <Scatter dataKey="averageSentimentScore" fill="#3b82f6" stroke="#1e40af" strokeWidth={1} />
             </ScatterChart>
           </ResponsiveContainer>
         </div>
-        
         {/* Dynamic AI Review */}
         <DynamicAnalystReview data={data} />
       </CardContent>

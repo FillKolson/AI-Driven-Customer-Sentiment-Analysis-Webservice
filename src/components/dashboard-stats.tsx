@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { TrendingUp, BarChart3, Clock, Target } from "lucide-react";
+import { TrendingUp, BarChart3, Clock } from "lucide-react";
 
 interface DashboardStatsProps {
   userId: string;
@@ -16,7 +16,6 @@ interface AnalyticsData {
     neutral: number;
   };
   daily_usage: Array<{ date: string; count: number }>;
-  top_keywords: Array<{ keyword: string; frequency: number }>;
 }
 
 export default function DashboardStats({ userId }: DashboardStatsProps) {
@@ -43,7 +42,7 @@ export default function DashboardStats({ userId }: DashboardStatsProps) {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[...Array(4)].map((_, i) => (
           <Card key={i} className="bg-white">
             <CardContent className="p-6">
@@ -76,7 +75,7 @@ export default function DashboardStats({ userId }: DashboardStatsProps) {
     0;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {/* Total Analyses */}
       <Card className="bg-white">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -125,24 +124,6 @@ export default function DashboardStats({ userId }: DashboardStatsProps) {
             {recentActivity}
           </div>
           <p className="text-xs text-gray-500 mt-1">Last 7 days</p>
-        </CardContent>
-      </Card>
-
-      {/* Top Keywords */}
-      <Card className="bg-white">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-gray-600">
-            Top Keywords
-          </CardTitle>
-          <Target className="h-4 w-4 text-orange-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-gray-900">
-            {analytics?.top_keywords.length || 0}
-          </div>
-          <p className="text-xs text-gray-500 mt-1">
-            {analytics?.top_keywords[0]?.keyword || "No keywords yet"}
-          </p>
         </CardContent>
       </Card>
     </div>

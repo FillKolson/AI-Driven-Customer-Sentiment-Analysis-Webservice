@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Loader2 } from 'lucide-react';
+import { Users, Loader2, BarChart3 } from 'lucide-react';
 
 interface GenderSentimentData {
   gender: string;
@@ -245,8 +245,14 @@ export default function GenderSentimentChart({ loading: externalLoading }: { loa
             Gender Sentiment Analysis
           </CardTitle>
         </CardHeader>
-        <CardContent className="h-80 flex items-center justify-center">
-          <p className="text-gray-500">No gender sentiment data available</p>
+        <CardContent>
+          <div className="text-center py-8">
+            <BarChart3 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+            <p className="text-gray-500">No gender sentiment data available</p>
+            <p className="text-sm text-gray-400 mt-1">
+              Ensure you have customer gender information and sentiment analyses
+            </p>
+          </div>
         </CardContent>
       </Card>
     );

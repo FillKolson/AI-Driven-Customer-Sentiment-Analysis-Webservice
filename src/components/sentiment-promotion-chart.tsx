@@ -316,10 +316,17 @@ export default function SentimentPromotionChart({ loading = false }: SentimentPr
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <DollarSign className="w-5 h-5" />
-          Average Sentiment Score vs Promotion Spend Analysis
-        </CardTitle>
+        <div className="flex justify-between items-center">
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="w-5 h-5" />
+            Average Sentiment Score vs Promotion Spend Analysis
+          </CardTitle>
+          <div className="text-sm text-gray-600">
+            Correlation: <span className={`font-medium ${data.summary.correlationCoefficient > 0 ? 'text-green-600' : data.summary.correlationCoefficient < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+              {data.summary.correlationCoefficient.toFixed(2)}
+            </span>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         {/* Scatter Plot Chart */}

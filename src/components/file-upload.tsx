@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
+import { Alert, AlertDescription } from "./ui/alert";
 import { Loader2, Upload, FileText, AlertCircle, CheckCircle, XCircle, Info } from "lucide-react";
 import { useToast } from "./ui/use-toast";
 import { parseCSVWithMetrics, validateCSVStructure, ParsedCSVRow } from "../lib/csvParser";
@@ -41,6 +42,7 @@ export default function FileUpload({
   const [columnMapping, setColumnMapping] = useState<any>(null);
   const [csvValidation, setCsvValidation] = useState<{ isValid: boolean; errors: string[]; warnings: string[] } | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
+  const [inlineError, setInlineError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -79,6 +81,7 @@ export default function FileUpload({
     const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase();
     
     if (!allowedTypes.includes(selectedFile.type) && !['csv', 'txt'].includes(fileExtension || '')) {
+      setInlineError("Please upload a CSV or TXT file");
       toast({
         title: "Invalid File Type",
         description: "Please upload a CSV or TXT file",
@@ -89,6 +92,7 @@ export default function FileUpload({
 
     // Validate file size (max 10MB)
     if (selectedFile.size > 10 * 1024 * 1024) {
+      setInlineError("Please upload a file smaller than 10MB");
       toast({
         title: "File Too Large",
         description: "Please upload a file smaller than 10MB",
@@ -97,6 +101,7 @@ export default function FileUpload({
       return;
     }
 
+    setInlineError(null);
     setFile(selectedFile);
     parseFile(selectedFile);
   };
@@ -104,6 +109,7 @@ export default function FileUpload({
   const parseFile = async (file: File) => {
     setIsUploading(true);
     setUploadProgress(0);
+    setInlineError(null);
 
     try {
       const text = await file.text();
@@ -115,6 +121,7 @@ export default function FileUpload({
         setCsvValidation(validation);
         
         if (!validation.isValid) {
+          setInlineError(validation.errors.join(', '));
           toast({
             title: "CSV Validation Failed",
             description: validation.errors.join(', '),
@@ -134,6 +141,7 @@ export default function FileUpload({
         const { rows, columnMapping: mapping } = parseCSVWithMetrics(text);
         
         if (rows.length === 0) {
+          setInlineError("The CSV contains no valid rows to analyze");
           toast({
             title: "No Valid Data",
             description: "The CSV contains no valid rows to analyze",
@@ -143,6 +151,7 @@ export default function FileUpload({
         }
         
         if (rows.length > 10000) {
+          setInlineError("Maximum 10000 rows per file. Please split your data into smaller files.");
           toast({
             title: "Too Many Rows",
             description: "Maximum 10000 rows per file. Please split your data into smaller files.",
@@ -172,6 +181,7 @@ export default function FileUpload({
         const lines = text.split('\n').filter(line => line.trim().length > 0);
         
         if (lines.length === 0) {
+          setInlineError("The file contains no valid text to analyze");
           toast({
             title: "Empty File",
             description: "The file contains no valid text to analyze",
@@ -181,6 +191,7 @@ export default function FileUpload({
         }
 
         if (lines.length > 10000) {
+          setInlineError("Maximum 10000 lines per file. Please split your data into smaller files.");
           toast({
             title: "Too Many Lines",
             description: "Maximum 10000 lines per file. Please split your data into smaller files.",
@@ -207,6 +218,7 @@ export default function FileUpload({
 
     } catch (error) {
       console.error("Error parsing file:", error);
+      setInlineError("Could not read the file. Please try again.");
       toast({
         title: "Error Parsing File",
         description: "Could not read the file. Please try again.",
@@ -219,11 +231,13 @@ export default function FileUpload({
 
   const handleAnalyze = async () => {
     if (!parsedTexts.length) {
+      setInlineError("Please upload a file first");
       toast({ title: "No Texts to Analyze", description: "Please upload a file first", variant: "destructive" });
       return;
     }
 
     if (currentUsage + parsedTexts.length > usageLimit) {
+      setInlineError(`This analysis would use ${parsedTexts.length} API calls, but you only have ${usageLimit - currentUsage} remaining.`);
       toast({ title: "Usage Limit Exceeded", description: `This analysis would use ${parsedTexts.length} API calls, but you only have ${usageLimit - currentUsage} remaining.`, variant: "destructive" });
       return;
     }
@@ -245,6 +259,7 @@ export default function FileUpload({
 
       if (!initialResponse.ok) {
         const error = await initialResponse.json();
+        setInlineError(error.error || "Failed to start batch analysis");
         throw new Error(error.error || "Failed to start batch analysis");
       }
 
@@ -254,6 +269,7 @@ export default function FileUpload({
       const poll = async (jobIdToPoll: string) => {
         const statusResponse = await fetch(`/api/sentiment/batch-status/${jobIdToPoll}`);
         if (!statusResponse.ok) {
+          setInlineError('Failed to get job status');
           throw new Error('Failed to get job status');
         }
 
@@ -266,6 +282,7 @@ export default function FileUpload({
           setIsAnalyzing(false);
           setJobId(null);
         } else if (statusData.status === 'failed') {
+          setInlineError(statusData.error || 'Analysis job failed');
           throw new Error(statusData.error || 'Analysis job failed');
         } else {
           setTimeout(() => poll(jobIdToPoll), 2000);
@@ -276,6 +293,7 @@ export default function FileUpload({
 
     } catch (error) {
       console.error("Batch analysis error:", error);
+      setInlineError(error instanceof Error ? error.message : "An error occurred");
       toast({ title: "Analysis Failed", description: error instanceof Error ? error.message : "An error occurred", variant: "destructive" });
       setIsAnalyzing(false);
       setJobId(null);
@@ -289,6 +307,7 @@ export default function FileUpload({
     setAnalysisProgress(0);
     setColumnMapping(null);
     setCsvValidation(null);
+    setInlineError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -363,6 +382,16 @@ export default function FileUpload({
               </Button>
             </div>
           </div>
+
+          {/* Inline Error Display */}
+          {inlineError && (
+            <div aria-live="polite">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{inlineError}</AlertDescription>
+              </Alert>
+            </div>
+          )}
 
           {/* Upload Progress */}
           {isUploading && (
