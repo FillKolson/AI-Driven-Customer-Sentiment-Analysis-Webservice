@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft } from "lucide-react";
 import { Trash2 } from "lucide-react";
+import { Download } from "lucide-react";
 
 interface Analysis {
   id: string;
@@ -41,6 +42,7 @@ export default function HistoryPage() {
   const [datasets, setDatasets] = useState<string[]>([]);
   const [selectedDataset, setSelectedDataset] = useState<string>("");
   const [deleting, setDeleting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const fetchAllAnalyses = async () => {
     try {
@@ -74,6 +76,37 @@ export default function HistoryPage() {
       }
     } catch (e) {
       console.error('Failed to fetch datasets', e);
+    }
+  };
+
+  const handleDownloadDatasetPdf = async () => {
+    if (!selectedDataset) {
+      toast({ title: 'No dataset selected', description: 'Please choose a dataset to download', variant: 'destructive' });
+      return;
+    }
+    setDownloading(true);
+    try {
+      const params = new URLSearchParams({ file_name: selectedDataset });
+      const res = await fetch(`/api/datasets/download/pdf?${params.toString()}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || `Download failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `processed-dataset-${new Date().toISOString().split('T')[0]}-${selectedDataset}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast({ title: 'Download started', description: `Downloading PDF for "${selectedDataset}"` });
+    } catch (e: any) {
+      console.error('PDF download error', e);
+      toast({ title: 'Download failed', description: e.message || 'Unable to download PDF', variant: 'destructive' });
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -156,6 +189,16 @@ export default function HistoryPage() {
                   </UiSelectContent>
                 </UiSelect>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadDatasetPdf}
+                disabled={downloading || !selectedDataset}
+                title="Download selected dataset as PDF"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {downloading ? 'Generating PDF...' : 'Download Dataset PDF'}
+              </Button>
               <Button
                 variant="destructive"
                 size="sm"
